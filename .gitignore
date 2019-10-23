@@ -1,0 +1,5 @@
+output
+benchmarks
+.ipynb_checkpoints/
+result
+_nixec/database

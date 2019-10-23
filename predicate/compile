@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -e
+DIR="$(dirname $(realpath "${BASH_SOURCE[0]}"))"
+NAME=compile
+
+output="$NAME"
+
+mkdir -p "$output"
+
+cp -r --no-preserve=mode "$1/../src" "$output/src"
+
+shift
+
+bash "$DIR/utils/compile.sh" "$output" "$1"

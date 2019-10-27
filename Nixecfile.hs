@@ -1,6 +1,9 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+
 import System.Directory
+import System.FilePath
 import Data.Foldable
 import Data.Maybe
 import Data.String
@@ -16,6 +19,7 @@ data JReduceSettings = JReduceSettings
   , jreduceStrategy    :: Text.Text
   , jreduceKeepFolders :: Bool
   , jreducePreserve    :: [Text.Text]
+  , jreduceArgs        :: [ CommandArgument ]
   } deriving (Show)
 
 defaultSettings run strategy = JReduceSettings 
@@ -23,6 +27,7 @@ defaultSettings run strategy = JReduceSettings
   , jreduceStrategy = strategy
   , jreduceKeepFolders = False
   , jreducePreserve = ["out", "exit"]
+  , jreduceArgs = []
   }
 
 evaluate :: JReduceSettings -> RuleM ()
@@ -37,7 +42,9 @@ evaluate JReduceSettings {..} = do
       , "--total-time", "3600"
       , "--strategy", RegularArg jreduceStrategy
       , "--output-file", Output "reduced"
+      , DebugArgs
       ]
+    , jreduceArgs
     , [ "--remove-folders" | not jreduceKeepFolders ]
     , [ "--metrics-file", "../metrics.csv"
       , "--try-initial"
@@ -47,59 +54,83 @@ evaluate JReduceSettings {..} = do
       ]
     ]
 
-main :: IO ()
-main = defaultMain $ do
-  benchmarks <- listFiles benchmarkpkg 
+evaluation :: (JReduceSettings -> JReduceSettings) -> Nixec Rule
+evaluation update = do
+  benchmarks <- fmap (take 2 . List.sort) . listFiles (PackageInput "benchmarks")
     $ Text.stripSuffix "_tgz-pJ8" . Text.pack
   
-  collectWith resultCollector . scopesBy fst benchmarks $ \(name, benchmark) ->
+  collectWith resultCollector . scopesBy fst benchmarks  $ \(name, benchmark) -> 
     collectWith resultCollector . scopes predicateNames $ \predicate -> do
       run <- rule "run" $ do
         benc <- link "benchmark" benchmark
         predi <- link "predicate" $ predicates <./> toFilePath predicate
         cmd predi $ args .= [ benc <.+> "/classes" , benc <.+> "/lib"]
 
-      reduce <- onSuccess run $ scopes strategies $ \strategy -> do
-        reductions <- rules ["part", "full"] $ evaluate . \case
-          "full" -> 
-            defaultSettings run strategy
-          "part" -> 
-            (defaultSettings run strategy)
-             { jreduceKeepFolders = True
-             , jreducePreserve = [ "exit" ]
-             }
-          a -> error $ "unexpected rule " <> show a
-
-        collect $ do
-          rs <- asLinks reductions
-          extract <- link "extract.py" extractpy
-          path [ "python3" ]
-          cmd "python3" $ do
-            args .= extract : RegularArg name : RegularArg predicate : rs
-            stdout .= Just "result.csv"
-          exists "result.csv"
+      reductions <- onSuccess run $ rules strategies $ \strategy -> 
+        evaluate (update $ defaultSettings run strategy)
 
       collect $ do
+        rs <- asLinks (concat . maybeToList $ reductions)
+        extract <- link "extract.py" extractpy
         needs [ "run" ~> run ]
-        r <- asLinks (concat . maybeToList $ reduce)
-        joinCsv resultFields r "result.csv"
-
+        path [ "python3" ]
+        cmd "python3" $ do
+          args .= extract : RegularArg name : RegularArg predicate : rs
+          stdout .= Just "result.csv"
+        exists "result.csv"
   where
+    extractpy = 
+      FileInput "/Users/kalhauge/Work/Phd/articles/method-reduction/bin/extract.py"
+
     predicateNames =
       [ "cfr" , "fernflower", "procyon"]
 
-    strategies =
-      ["classes", "deep", "deep+i2m", "deep+m2m"] 
+examples = scope "examples" $ do 
+  let examplenames = 
+        [ "main_example"
+        , "field"
+        , "throws"
+        ]
+  collectWith resultCollector . scopes examplenames $ \name -> do
+    run <- rule "run" $ do
+      bench <- link "benchmark" (PackageInput (fromString . Text.unpack $ "examples." <> name))
+      predi <- createScript "predicate" $ "java -cp $1:$2 Main"
+      cmd predi $ args .= [ bench <.+> "/classes" , bench <.+> "/lib"]
 
-    benchmarkpkg =
-      PackageInput "benchmark-small"
+    reductions <- onSuccess run . rules strategies $ \strategy -> 
+      evaluate $ (defaultSettings run strategy) 
+        { jreduceKeepFolders = True
+        , jreduceArgs = 
+          [ "--core", RegularArg $ "Main"
+          , "--core", RegularArg $ "Main.main:([Ljava/lang/String;)V!code"
+          ]
+        }
 
-    resultFields =
-      [ "benchmark", "predicate", "strategy" ]
+    collect $ do
+      rs <- asLinks (concat . maybeToList $ reductions)
+      extract <- link "test.py" extractpy
+      path [ "python3" ]
+      cmd "python3" $ do
+        args .= extract : RegularArg name : rs
+        stdout .= Just "result.csv"
+      exists "result.csv"
+  where
+    extractpy = FileInput "/Users/kalhauge/Work/Phd/articles/method-reduction/bin/test.py"
 
-    resultCollector x =
-      joinCsv resultFields x "result.csv"
+main :: IO ()
+main = defaultMain . collectLinks $ sequenceA
+  [ examples
+  , scope "part" 
+    $ evaluation (\a -> a { jreduceKeepFolders = True, jreducePreserve = ["exit"]})
+  , scope "full" 
+    $ evaluation id
+  ]
 
-    extractpy = 
-      FileInput "/Users/kalhauge/Work/Phd/articles/method-reduction/bin/extract.py"
+strategies =
+  ["classes", "deep", "deep+i2m", "deep+m2m"] 
+
+resultCollector x =
+  joinCsv resultFields x "result.csv"
+  where 
+    resultFields = [ "benchmark", "predicate", "strategy" ]
 

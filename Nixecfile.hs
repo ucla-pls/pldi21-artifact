@@ -39,16 +39,15 @@ evaluate JReduceSettings {..} = do
     [ [ "-W", Output "workfolder"
       , "-v"
       , "-p", RegularArg (Text.intercalate "," jreducePreserve)
-      , "--total-time", "3600"
+      , "--total-time", "7200"
       , "--strategy", RegularArg jreduceStrategy
       , "--output-file", Output "reduced"
       , DebugArgs
       ]
     , jreduceArgs
-    , [ "--remove-folders" | not jreduceKeepFolders ]
+    , [ "--keep-folders" | jreduceKeepFolders ]
     , [ "--metrics-file", "../metrics.csv"
-      , "--try-initial"
-      , "--stdlib", "--cp", benc <.+> "/lib"
+      , "--try-initial", "--cp", benc <.+> "/lib"
       , benc <.+> "/classes"
       , predi , "{}" , "%" <.+> benc <.+> "/lib"
       ]
@@ -127,7 +126,7 @@ main = defaultMain . collectLinks $ sequenceA
   ]
 
 strategies =
-  ["classes", "deep", "deep+i2m", "deep+m2m"] 
+  ["classes", "logic+under", "logic+over"] 
 
 resultCollector x =
   joinCsv resultFields x "result.csv"

@@ -25,6 +25,17 @@ self: super:
       '';
     };
 
+  stubs = 
+    super.stdenv.mkDerivation {
+      name = "stdlib-stubs.bin";
+      buildInputs = (with self; [ openjdk haskellPackages.javaq ]);
+      phases = "installPhase";
+      installPhase = ''
+        javaq --fast --stdlib hierarchy+bin > $out
+      '';
+    };
+
+
   mkRule = attr:
     super.stdenv.mkDerivation (
       attr // { 

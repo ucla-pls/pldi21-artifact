@@ -34,6 +34,7 @@ evaluate :: JReduceSettings -> RuleM ()
 evaluate JReduceSettings {..} = do
   benc <- link "benchmark" (jreduceRunName <./> "benchmark")
   predi <- link "predicate" (jreduceRunName <./> "predicate")
+  stdlib <- link "stdlib.bin" (PackageInput "stubs")
   path [ "haskellPackages.jreduce" ] 
   cmd "jreduce" $ args .= concat
     [ [ "-W", Output "workfolder"
@@ -42,6 +43,7 @@ evaluate JReduceSettings {..} = do
       , "--total-time", "7200"
       , "--strategy", RegularArg jreduceStrategy
       , "--output-file", Output "reduced"
+      , "--stdlib", stdlib
       , DebugArgs
       ]
     , jreduceArgs
@@ -55,7 +57,7 @@ evaluate JReduceSettings {..} = do
 
 evaluation :: (JReduceSettings -> JReduceSettings) -> Nixec Rule
 evaluation update = do
-  benchmarks <- fmap (take 2 . List.sort) . listFiles (PackageInput "benchmarks")
+  benchmarks <- fmap (take 10 . List.sort) . listFiles (PackageInput "benchmarks")
     $ Text.stripSuffix "_tgz-pJ8" . Text.pack
   
   collectWith resultCollector . scopesBy fst benchmarks  $ \(name, benchmark) -> 

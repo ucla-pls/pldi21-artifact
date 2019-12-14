@@ -37,6 +37,8 @@ def main(name, predicate, folders):
                 rows = list(csv.DictReader(p))
             for final in reversed(rows):
                 if final['judgment'] == 'success': break
+            else:
+                result['status'] = "bad"
 
             result["scc"] = int(final["count"])
             result["initial-scc"] = int(rows[0]["count"])

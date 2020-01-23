@@ -20,5 +20,6 @@ in {
   field = mkExample "field" ./field;
   throws = mkExample "throws" ./throws;
   inner = mkExample "inner" ./inner;
+  lambda = mkExample "lambda" ./lambda;
   defaultmethod = mkExample "defaultmethod" ./defaultmethod;
 }

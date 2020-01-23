@@ -3,6 +3,7 @@
 import sys
 import csv
 import re
+import itertools
 from pathlib import Path
 from contextlib import contextmanager
 from collections import defaultdict
@@ -35,6 +36,7 @@ def main(name, predicate, folders):
         try:
             with open(str(workfolder / "metrics.csv")) as p:
                 rows = list(csv.DictReader(p))
+
             for final in reversed(rows):
                 if final['judgment'] == 'success': break
             else:
@@ -47,6 +49,15 @@ def main(name, predicate, folders):
             result["classes"] = int(final["classes"])
             result["initial-classes"] = int(rows[0]["classes"])
             result["iters"] = int(final["folder"])
+           
+            hits = set()
+            for x in rows:
+                hits.add(int(x["count"]))
+
+            for i in itertools.count():
+                if not i in hits: break
+            result["searches"] = i - 1
+
             result["time"] = float(final["time"])
 
             bugs = set((workfolder / "initial" / "stdout").read_text().splitlines())
@@ -69,7 +80,7 @@ def main(name, predicate, folders):
             ["name", "predicate", "strategy", 
                 "bugs", "initial-scc", "scc", "initial-classes", "classes", 
                 "initial-bytes", "bytes", 
-                "iters", "time", 
+                "iters", "searches", "time", 
                 "status", "verify"]
             )
     wr.writeheader()

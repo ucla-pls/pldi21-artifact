@@ -2,9 +2,9 @@
 stdenv.mkDerivation {
   name = "nixec-builder";
   src = ../Nixecfile.hs;
-  buildInputs = [ 
-    ( ghc.withPackages 
-      (p: with p; [ nixec-debug text ]) 
+  buildInputs = [
+    ( ghc.withPackages
+      (p: with p; [ nixec text ])
     )
   ];
   phases = "buildPhase";

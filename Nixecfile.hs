@@ -43,7 +43,7 @@ evaluate JReduceSettings {..} = do
       , "-p"
       , RegularArg (Text.intercalate "," jreducePreserve)
       , "--total-time"
-      , "1800"
+      , "3200"
       , "--strategy"
       , RegularArg jreduceStrategy
       , "--output-file"
@@ -69,7 +69,8 @@ evaluate JReduceSettings {..} = do
 evaluation :: (JReduceSettings -> JReduceSettings) -> Nixec Rule
 evaluation update = do
   benchmarks <-
-    fmap (take 20 . List.sort)
+    -- fmap (take 20 . List.sort)
+    fmap (List.sort . removeCovariantArrays)
     . listFiles (PackageInput "benchmarks")
     $ Text.stripSuffix "_tgz-pJ8"
     . Text.pack
@@ -104,7 +105,16 @@ evaluation update = do
           args .= extract : RegularArg name : RegularArg predicate : rs
           stdout .= Just "result.csv"
         exists "result.csv"
-  where predicateNames = ["cfr", "fernflower", "procyon"]
+ where 
+   predicateNames = ["cfr", "fernflower", "procyon"]
+
+   removeCovariantArrays = 
+    filter (\(n,_) -> n `notElem` 
+        [ "url22ade473db_sureshsajja_CodingProblems"
+        , "url2984a84cec_yusuke2255_relation_resolver"
+        , "url484e914e4f_JasperZXY_TestJava" 
+        ]
+      )
 
 extractpy =
   FileInput "/home/kalhauge/Work/Evaluation/method-reduction/bin/extract.py"

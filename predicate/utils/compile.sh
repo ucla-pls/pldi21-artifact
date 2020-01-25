@@ -27,7 +27,7 @@ then
   comm -23 <(sort "$output/compiler.out.txt") <(sort "$output/cmp-compiler.out.txt")
 else
   # sed 's/[0-9]//g' "$output/compiler.out.txt"
-  sed -n 's/^\([^.]*.java\):[0-9]*/\1/gp' "$output/compiler.out.txt"
+  sed -n 's/^\([^.]*.java\):[0-9]*/\1/gp' "$output/compiler.out.txt" | sort
 fi
 
 exit "$RET"

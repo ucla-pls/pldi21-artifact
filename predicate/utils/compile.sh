@@ -3,7 +3,9 @@ set -o pipefail
 function compile_all () {
   mkdir -p "$1"
   cd "$2"
-  javac -cp "$libs":"$classpath":"$1" -d "$1" "@$(realpath --relative-to=. "$output/sourcefiles.txt")" 2>&1 
+  javac -Xmaxerrs 1000 \
+    -cp "$libs":"$classpath":"$1" \
+    -d "$1" "@$(realpath --relative-to=. "$output/sourcefiles.txt")" 2>&1 
   X="$?"
   if [[ "$X" == "1" ]]; 
   then 

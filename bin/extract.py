@@ -49,6 +49,7 @@ def main(name, predicate, folders):
             result["classes"] = int(final["classes"])
             result["initial-classes"] = int(rows[0]["classes"])
             result["iters"] = int(final["folder"])
+            result["flaky"] = rows[0]["judgment"] != "success"
            
             hits = set()
             for x in rows:
@@ -60,15 +61,16 @@ def main(name, predicate, folders):
 
             result["time"] = float(final["time"])
 
-            bugs = set((workfolder / "initial" / "stdout").read_text().splitlines())
+            bugs = list((workfolder / "initial" / "stdout").read_text().splitlines())
             result["bugs"] = len(bugs)
-
+            bugs = set(bugs)
+           
+            result["verify"] = "success"
             for path in sorted(workfolder.glob("*/*/stdout")):
-                if any(l not in bugs for l in path.read_text().splitlines()): 
+                found_bugs = set(path.read_text().splitlines())
+                if bugs < found_bugs:
                     result["verify"] = str(path.parent.name)
                     break
-            else:
-                result["verify"] = "success"
         
         except FileNotFoundError as e:
             result['status'] = "catastrophe"
@@ -81,7 +83,7 @@ def main(name, predicate, folders):
                 "bugs", "initial-scc", "scc", "initial-classes", "classes", 
                 "initial-bytes", "bytes", 
                 "iters", "searches", "time", 
-                "status", "verify"]
+                "status", "verify", "flaky"]
             )
     wr.writeheader()
     for row in sorted(results, key=lambda x: (x["predicate"], x["name"], x["strategy"])):

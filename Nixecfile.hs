@@ -18,6 +18,7 @@ data JReduceSettings = JReduceSettings
   { jreduceRunName     :: RuleName
   , jreduceStrategy    :: Text.Text
   , jreduceKeepFolders :: Bool
+  , jreduceKeepOutputs :: Bool
   , jreducePreserve    :: [Text.Text]
   , jreduceArgs        :: [ CommandArgument ]
   } deriving (Show)
@@ -26,6 +27,7 @@ defaultSettings run strategy = JReduceSettings
   { jreduceRunName     = run
   , jreduceStrategy    = strategy
   , jreduceKeepFolders = False
+  , jreduceKeepOutputs = True
   , jreducePreserve    = ["out", "exit"]
   , jreduceArgs        = []
   }
@@ -54,9 +56,11 @@ evaluate JReduceSettings {..} = do
       ]
     , jreduceArgs
     , [ "--keep-folders" | jreduceKeepFolders ]
+    , [ "--keep-outputs" | jreduceKeepOutputs ]
     , [ "--metrics-file"
       , "../metrics.csv"
       , "--try-initial"
+      , "--ignore-failure"
       , "--cp"
       , benc <.+> "/lib"
       , benc <.+> "/classes"
@@ -69,7 +73,7 @@ evaluate JReduceSettings {..} = do
 evaluation :: (JReduceSettings -> JReduceSettings) -> Nixec Rule
 evaluation update = do
   benchmarks <-
-    -- fmap (take 20 . List.sort)
+    -- fmap (take 10)
     fmap (List.sort . removeCovariantArrays)
     . listFiles (PackageInput "benchmarks")
     $ Text.stripSuffix "_tgz-pJ8"
@@ -156,7 +160,7 @@ main = defaultMain . collectLinks $ sequenceA
   , scope "full" $ evaluation id
   ]
 
-strategies = ["classes", "logic+under", "logic+over"]
+strategies = ["classes", "logic+over", "logic+extends+over"]
 
 resultCollector x = joinCsv resultFields x "result.csv"
   where resultFields = ["benchmark", "predicate", "strategy"]

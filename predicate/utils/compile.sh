@@ -3,9 +3,9 @@ set -o pipefail
 function compile_all () {
   mkdir -p "$1"
   cd "$2"
-  javac -Xmaxerrs 1000 \
-    -cp "$libs":"$classpath":"$1" \
-    -d "$1" "@$(realpath --relative-to=. "$output/sourcefiles.txt")" 2>&1 
+  javac -Xmaxwarns 0 -Xmaxerrs ${MAX_ERRORS:-1000} \
+      -nowarn -cp "$libs":"$classpath":"$1" -d "$1" \
+      "@$(realpath --relative-to=. "$output/sourcefiles.txt")"  2>&1 
   X="$?"
   if [[ "$X" == "1" ]]; 
   then 
@@ -29,7 +29,7 @@ then
   comm -23 <(sort "$output/compiler.out.txt") <(sort "$output/cmp-compiler.out.txt")
 else
   # sed 's/[0-9]//g' "$output/compiler.out.txt"
-  sed -n 's/^\([^.]*.java\):[0-9]*/\1/gp' "$output/compiler.out.txt" | sort
+  sed -n 's/^\([^.]*.java\):[0-9]*: error/\1/gp' "$output/compiler.out.txt" | sort
 fi
 
 exit "$RET"

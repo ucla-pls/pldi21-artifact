@@ -38,42 +38,32 @@ evaluate JReduceSettings {..} = do
   predi  <- link "predicate" (jreduceRunName <./> "predicate")
   stdlib <- link "stdlib.bin" (PackageInput "stubs")
   path ["haskellPackages.jreduce"]
-  cmd "jreduce" $ args .= concat
-    [ [ "-W"
-      , Output "workfolder"
-      , "-v"
-      , "-p"
-      , RegularArg (Text.intercalate "," jreducePreserve)
-      , "--total-time"
-      , "3200"
-      , "--strategy"
-      , RegularArg jreduceStrategy
-      , "--output-file"
-      , Output "reduced"
-      , "--stdlib"
-      , stdlib
-      , DebugArgs
+  cmd "jreduce" $ do 
+    args .= concat
+      [ [ "-W" , Output "workfolder"
+        , "-v" , "-p" 
+        , RegularArg (Text.intercalate "," jreducePreserve)
+        , "--total-time" , "3200"
+        , "--strategy" , RegularArg jreduceStrategy
+        , "--output-file", Output "reduced"
+        , "--stdlib", stdlib
+        , DebugArgs
+        ]
+      , jreduceArgs
+      , [ "--keep-folders" | jreduceKeepFolders ]
+      , [ "--keep-outputs" | jreduceKeepOutputs ]
+      , [ "--metrics-file", "../metrics.csv"
+        , "--try-initial"
+        , "--ignore-failure"
+        , "--cp", benc <.+> "/lib", benc <.+> "/classes", predi , "{}"
+        , "%" <.+> benc <.+> "/lib"
+        ]
       ]
-    , jreduceArgs
-    , [ "--keep-folders" | jreduceKeepFolders ]
-    , [ "--keep-outputs" | jreduceKeepOutputs ]
-    , [ "--metrics-file"
-      , "../metrics.csv"
-      , "--try-initial"
-      , "--ignore-failure"
-      , "--cp"
-      , benc <.+> "/lib"
-      , benc <.+> "/classes"
-      , predi
-      , "{}"
-      , "%" <.+> benc <.+> "/lib"
-      ]
-    ]
 
-evaluation :: (JReduceSettings -> JReduceSettings) -> Nixec Rule
-evaluation update = do
+evaluation :: [ Text.Text ] -> Int -> Nixec Rule
+evaluation strategies errors = do
   benchmarks <-
-    -- fmap (take 10)
+    --fmap (take 10)
     fmap (List.sort . removeCovariantArrays)
     . listFiles (PackageInput "benchmarks")
     $ Text.stripSuffix "_tgz-pJ8"
@@ -95,10 +85,13 @@ evaluation update = do
       run <- rule "run" $ do
         benc  <- link "benchmark" benchmark
         predi <- link "predicate" $ predicates <./> toFilePath predicate
-        cmd predi $ args .= [benc <.+> "/classes", benc <.+> "/lib"]
+        env "MAX_ERRORS" (Text.pack . show $ errors)
+        cmd predi $ do
+          args .= [benc <.+> "/classes", benc <.+> "/lib"]
 
-      reductions <- onSuccess run $ rules strategies $ \strategy ->
-        evaluate (update $ defaultSettings run strategy)
+      reductions <- onSuccess run $ rules strategies $ \strategy -> do
+        env "MAX_ERRORS" (Text.pack . show $ errors)
+        evaluate (defaultSettings run strategy)
 
       collect $ do
         rs      <- asLinks (concat . maybeToList $ reductions)
@@ -133,14 +126,13 @@ examples = scope "examples" $ do
       predi <- createScript "predicate" $ "java -cp $1:$2 Main"
       cmd predi $ args .= [bench <.+> "/classes", bench <.+> "/lib"]
 
-    reductions <- onSuccess run . rules strategies $ \strategy ->
+    reductions <- onSuccess run . rules ["logic+over", "logic"] $ \strategy ->
       evaluate $ (defaultSettings run strategy)
         { jreduceKeepFolders = True
-        , jreduceArgs = [ "--core"
-                        , RegularArg $ "Main"
-                        , "--core"
-                        , RegularArg $ "Main.main:([Ljava/lang/String;)V!code"
-                        ]
+        , jreduceArgs = [] 
+                        -- [ "--core" , RegularArg $ "Main"
+                        -- , "--core" , RegularArg $ "Main.main:([Ljava/lang/String;)V!code"
+                        -- ]
         }
 
     collect $ do
@@ -155,12 +147,9 @@ examples = scope "examples" $ do
 main :: IO ()
 main = defaultMain . collectLinks $ sequenceA
   [ examples
-  , scope "part" $ evaluation
-    (\a -> a { jreduceKeepFolders = False, jreducePreserve = ["exit"] })
-  , scope "full" $ evaluation id
+  , scope "part" $ evaluation ["classes", "logic", "logic+over", "logic+under"] 1 
+  , scope "full" $ evaluation ["classes", "logic", "logic+over", "logic+under"] 50
   ]
-
-strategies = ["classes", "logic+over", "logic+extends+over"]
 
 resultCollector x = joinCsv resultFields x "result.csv"
   where resultFields = ["benchmark", "predicate", "strategy"]

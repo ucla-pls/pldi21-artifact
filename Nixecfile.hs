@@ -36,6 +36,7 @@ evaluate :: JReduceSettings -> RuleM ()
 evaluate JReduceSettings {..} = do
   benc   <- link "benchmark" (jreduceRunName <./> "benchmark")
   predi  <- link "predicate" (jreduceRunName <./> "predicate")
+  expect  <- link "expectation" (jreduceRunName <./> "stdout")
   stdlib <- link "stdlib.bin" (PackageInput "stubs")
   path ["haskellPackages.jreduce"]
   cmd "jreduce" $ do 
@@ -55,6 +56,7 @@ evaluate JReduceSettings {..} = do
       , [ "--metrics-file", "../metrics.csv"
         , "--try-initial"
         , "--ignore-failure"
+        , "--out", expect
         , "--cp", benc <.+> "/lib", benc <.+> "/classes", predi , "{}"
         , "%" <.+> benc <.+> "/lib"
         ]
@@ -63,8 +65,8 @@ evaluate JReduceSettings {..} = do
 evaluation :: [ Text.Text ] -> Int -> Nixec Rule
 evaluation strategies errors = do
   benchmarks <-
-    --fmap (take 10)
-    fmap (List.sort . removeCovariantArrays)
+    fmap (take 10)
+    . fmap (List.sort . removeCovariantArrays)
     . listFiles (PackageInput "benchmarks")
     $ Text.stripSuffix "_tgz-pJ8"
     . Text.pack

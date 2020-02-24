@@ -15,6 +15,7 @@ FLAGS="-dgs=1"
 mkdir -p "$output/src"
 (
   cd "$1"; 
+  export LC_ALL=C
   find . -name '*.class' -print | sed 's/\.\///' | sort > "$output/classes.txt";
   jar cf "$output/input.jar" "@$output/classes.txt"
 )

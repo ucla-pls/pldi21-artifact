@@ -49,6 +49,7 @@ def main(name, predicate, folders):
             result["classes"] = int(final["classes"])
             result["initial-classes"] = int(rows[0]["classes"])
             result["iters"] = int(final["folder"])
+            result["setup-time"] = float(rows[0]["time"])
             result["flaky"] = rows[0]["judgment"] != "success"
            
             hits = set()
@@ -59,7 +60,7 @@ def main(name, predicate, folders):
                 if not i in hits: break
             result["searches"] = i - 1
 
-            result["time"] = float(final["time"])
+            result["time"] = float(final["time"]) + float(final["run time"]) + float(final["setup time"])
 
             bugs = list((workfolder / "initial" / "stdout").read_text().splitlines())
             result["bugs"] = len(bugs)
@@ -82,7 +83,7 @@ def main(name, predicate, folders):
             ["name", "predicate", "strategy", 
                 "bugs", "initial-scc", "scc", "initial-classes", "classes", 
                 "initial-bytes", "bytes", 
-                "iters", "searches", "time", 
+                "iters", "searches", "setup-time", "time", 
                 "status", "verify", "flaky"]
             )
     wr.writeheader()

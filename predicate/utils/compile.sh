@@ -3,7 +3,7 @@ set -o pipefail
 function compile_all () {
   mkdir -p "$1"
   cd "$2"
-  javac -Xmaxwarns 0 -Xmaxerrs ${MAX_ERRORS:-1000} \
+  javac -encoding utf8 -Xmaxwarns 0 -Xmaxerrs ${MAX_ERRORS:-1000} \
       -nowarn -cp "$libs":"$classpath":"$1" -d "$1" \
       "@$(realpath --relative-to=. "$output/sourcefiles.txt")"  2>&1 
   X="$?"
@@ -18,6 +18,7 @@ function compile_all () {
 output="$(realpath ${1:?output not set})"
 libs="${2:?libs not set}"
 
+export LC_ALL=C
 find "$output/src" -name *.java | sed "s|$output/src/||" | sort > "$output/sourcefiles.txt"
 
 compile_all "$output/classes" "$output/src" > "$output/compiler.out.txt"

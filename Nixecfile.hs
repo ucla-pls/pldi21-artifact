@@ -65,8 +65,8 @@ evaluate JReduceSettings {..} = do
 evaluation :: [ Text.Text ] -> Int -> Nixec Rule
 evaluation strategies errors = do
   benchmarks <-
-    fmap (take 10)
-    . fmap (List.sort . removeCovariantArrays)
+    -- fmap (take 10)
+    fmap (List.sort . removeCovariantArrays)
     . listFiles (PackageInput "benchmarks")
     $ Text.stripSuffix "_tgz-pJ8"
     . Text.pack
@@ -149,8 +149,8 @@ examples = scope "examples" $ do
 main :: IO ()
 main = defaultMain . collectLinks $ sequenceA
   [ examples
-  , scope "part" $ evaluation ["classes", "logic", "logic+over", "logic+under"] 1 
-  , scope "full" $ evaluation ["classes", "logic", "logic+over", "logic+under"] 50
+  , scope "part" $ evaluation ["classes", "logic", "logic+over"] 1 
+  , scope "full" $ evaluation ["classes", "logic", "logic+over"] 50
   ]
 
 resultCollector x = joinCsv resultFields x "result.csv"

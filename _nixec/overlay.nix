@@ -4,16 +4,33 @@ self: super:
 
   examples = super.callPackage ../examples {};
 
-  benchmarks =
-    super.stdenv.mkDerivation {
-      name = "benchmarks";
-      src = builtins.fetchurl {
-        url = file:///home/kalhauge/Work/Evaluation/method-reduction/data/benchmarks.tar.gz;
-        sha256 = "0xq4nm8vvpgq0bj4nx6v0hmca3iryqlliga60x5qcqd1hal8j5pm";
-      };
-      unpackPhase = "tar -xf $src benchmarks/";
-      installPhase = "mv benchmarks $out";
+	binary-reduction-artifact = 
+    builtins.fetchurl {
+      url = https://zenodo.org/record/3262201/files/esecfse2019-binary-reduction.zip?download=1;
+      sha256 = "0ql5csmvrcc6x712wf4fbi2x7919jdqlgx0ialq36viahnddhs4g";
     };
+
+  benchmarks = super.stdenv.mkDerivation {
+    name = "binary-reduction-artifact";
+    src = self.binary-reduction-artifact;
+    buildInputs = (with self; [ unzip ]);
+    unpackPhase = ''
+      unzip $src esecfse2019-binary-reduction/data/benchmarks.tar.gz 
+			tar -xf esecfse2019-binary-reduction/data/benchmarks.tar.gz benchmarks/
+		'';
+    installPhase = "mv benchmarks $out";
+  };
+
+  # benchmarks = binary-reduction-benchmarks;
+    # super.stdenv.mkDerivation {
+    #   name = "benchmarks";
+    #   src = builtins.fetchurl {
+    #     url = file:///home/kalhauge/Work/Evaluartion/method-reduction/data/benchmarks.tar.gz;
+    #     sha256 = "0xq4nm8vvpgq0bj4nx6v0hmca3iryqlliga60x5qcqd1hal8j5pm";
+    #   };
+    #   unpackPhase = "tar -xf $src benchmarks/";
+    #   installPhase = "mv benchmarks $out";
+    # };
 
   predicates =
     super.stdenv.mkDerivation {

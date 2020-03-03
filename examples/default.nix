@@ -1,4 +1,4 @@
-{ stdenv, openjdk }:
+{ stdenv, openjdk}:
 let 
   mkExample = name: folder:
     stdenv.mkDerivation {
@@ -12,6 +12,7 @@ let
       installPhase = ''
         mkdir -p $out/lib
         mv classes $out
+        [ -e "$src/resources" ] && cp -r $src/resources $out/classes
         ln -s $src $out/src
       '';
     };
@@ -22,4 +23,5 @@ in {
   inner = mkExample "inner" ./inner;
   lambda = mkExample "lambda" ./lambda;
   defaultmethod = mkExample "defaultmethod" ./defaultmethod;
+  metadata = mkExample "metadata" ./metadata;
 }

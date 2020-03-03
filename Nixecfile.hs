@@ -119,7 +119,7 @@ extractpy =
   FileInput "/home/kalhauge/Work/Evaluation/method-reduction/bin/extract.py"
 
 examples = scope "examples" $ do
-  let examplenames = ["main_example", "field", "throws", "lambda"]
+  let examplenames = ["main_example", "field", "throws", "lambda", "metadata"]
   collectWith resultCollector . scopes examplenames $ \name -> do
     run <- rule "run" $ do
       bench <- link
@@ -128,13 +128,12 @@ examples = scope "examples" $ do
       predi <- createScript "predicate" $ "java -cp $1:$2 Main"
       cmd predi $ args .= [bench <.+> "/classes", bench <.+> "/lib"]
 
-    reductions <- onSuccess run . rules ["logic+over", "logic"] $ \strategy ->
+    reductions <- onSuccess run . rules ["logic+graph", "logic+approx", "logic"] $ \strategy ->
       evaluate $ (defaultSettings run strategy)
         { jreduceKeepFolders = True
-        , jreduceArgs = [] 
-                        -- [ "--core" , RegularArg $ "Main"
-                        -- , "--core" , RegularArg $ "Main.main:([Ljava/lang/String;)V!code"
-                        -- ]
+        , jreduceArgs = [ "--core" , RegularArg $ "Main"
+                        , "--core" , RegularArg $ "Main.main:([Ljava/lang/String;)V!code"
+                        ]
         }
 
     collect $ do
@@ -142,15 +141,15 @@ examples = scope "examples" $ do
       extract <- link "test.py" extractpy
       path ["python3"]
       cmd "python3" $ do
-        args .= extract : RegularArg name : rs
+        args .= extract : RegularArg name : RegularArg "run" : rs
         stdout .= Just "result.csv"
       exists "result.csv"
 
 main :: IO ()
 main = defaultMain . collectLinks $ sequenceA
   [ examples
-  , scope "part" $ evaluation ["classes", "logic", "logic+over"] 1 
-  , scope "full" $ evaluation ["classes", "logic", "logic+over"] 50
+  , scope "part" $ evaluation ["classes", "logic", "logic+graph", "logic+approx"] 1 
+  , scope "full" $ evaluation ["classes", "logic", "logic+graph", "logic+approx"] 100
   ]
 
 resultCollector x = joinCsv resultFields x "result.csv"

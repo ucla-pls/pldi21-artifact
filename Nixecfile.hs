@@ -19,6 +19,7 @@ data JReduceSettings = JReduceSettings
   , jreduceStrategy    :: Text.Text
   , jreduceKeepFolders :: Bool
   , jreduceKeepOutputs :: Bool
+  , jreduceVersion     :: Text.Text
   , jreducePreserve    :: [Text.Text]
   , jreduceArgs        :: [ CommandArgument ]
   } deriving (Show)
@@ -28,6 +29,7 @@ defaultSettings run strategy = JReduceSettings
   , jreduceStrategy    = strategy
   , jreduceKeepFolders = False
   , jreduceKeepOutputs = True
+  , jreduceVersion     = "jreduce"
   , jreducePreserve    = ["out", "exit"]
   , jreduceArgs        = []
   }
@@ -38,7 +40,7 @@ evaluate JReduceSettings {..} = do
   predi  <- link "predicate" (jreduceRunName <./> "predicate")
   expect  <- link "expectation" (jreduceRunName <./> "stdout")
   stdlib <- link "stdlib.bin" (PackageInput "stubs")
-  path ["haskellPackages.jreduce"]
+  path [packageFromText $ "haskellPackages." <> jreduceVersion]
   cmd "jreduce" $ do 
     args .= concat
       [ [ "-W" , Output "workfolder"
@@ -66,7 +68,7 @@ evaluation :: [ Text.Text ] -> Int -> Nixec Rule
 evaluation strategies errors = do
   benchmarks <-
     -- fmap (take 10)
-    fmap (List.sort . removeCovariantArrays)
+    fmap (List.sort . removeBadBenchmarks)
     . listFiles (PackageInput "benchmarks")
     $ Text.stripSuffix "_tgz-pJ8"
     . Text.pack
@@ -93,7 +95,13 @@ evaluation strategies errors = do
 
       reductions <- onSuccess run $ rules strategies $ \strategy -> do
         env "MAX_ERRORS" (Text.pack . show $ errors)
-        evaluate (defaultSettings run strategy)
+        case Text.stripSuffix "+rev" strategy of
+          Just strategy' -> 
+            evaluate ( (defaultSettings run strategy')
+                     { jreduceVersion = "jreduce", jreduceArgs = [ "--reverse-order"] }
+                    )
+          Nothing -> 
+            evaluate ( (defaultSettings run strategy) { jreduceVersion = "jreduce" } )
 
       collect $ do
         rs      <- asLinks (concat . maybeToList $ reductions)
@@ -107,11 +115,15 @@ evaluation strategies errors = do
  where 
    predicateNames = ["cfr", "fernflower", "procyon"]
 
-   removeCovariantArrays = 
+   removeBadBenchmarks = 
     filter (\(n,_) -> n `notElem` 
-        [ "url22ade473db_sureshsajja_CodingProblems"
+        [ -- covariant arrays
+					"url22ade473db_sureshsajja_CodingProblems"
         , "url2984a84cec_yusuke2255_relation_resolver"
         , "url484e914e4f_JasperZXY_TestJava" 
+				
+					-- overloads the stdlibrary	
+        , "url03c33a0cf1_m_m_m_java8_backports"
         ]
       )
 
@@ -128,8 +140,10 @@ examples = scope "examples" $ do
       predi <- createScript "predicate" $ "java -cp $1:$2 Main"
       cmd predi $ args .= [bench <.+> "/classes", bench <.+> "/lib"]
 
-    reductions <- onSuccess run . rules ["logic+graph", "logic+approx", "logic"] $ \strategy ->
-      evaluate $ (defaultSettings run strategy)
+    reductions <- onSuccess run . rules ["logic", "logic+approx", "logic+ddmin"] $ \strategy ->
+      evaluate $ ( (defaultSettings run strategy)
+                 { jreduceVersion = if Text.isSuffixOf "ddmin" strategy then "jreduce-ddmin" else "jreduce" }
+                 )
         { jreduceKeepFolders = True
         , jreduceArgs = [ "--core" , RegularArg $ "Main"
                         , "--core" , RegularArg $ "Main.main:([Ljava/lang/String;)V!code"
@@ -148,8 +162,8 @@ examples = scope "examples" $ do
 main :: IO ()
 main = defaultMain . collectLinks $ sequenceA
   [ examples
-  , scope "part" $ evaluation ["classes", "logic", "logic+graph", "logic+approx"] 1 
-  , scope "full" $ evaluation ["classes", "logic", "logic+graph", "logic+approx"] 100
+  -- , scope "part" $ evaluation ["classes", "logic", "logic+approx", "logic+ddmin"] 1 
+  , scope "full" $ evaluation ["classes", "logic", "logic+approx", "logic+ddmin", "logic+approx+rev", "logic+ddmin+rev"] 100
   ]
 
 resultCollector x = joinCsv resultFields x "result.csv"

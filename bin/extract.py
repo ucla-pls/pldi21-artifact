@@ -60,7 +60,10 @@ def main(name, predicate, folders):
                 if not i in hits: break
             result["searches"] = i - 1
 
-            result["time"] = float(final["time"]) + float(final["run time"]) + float(final["setup time"])
+            if result['status'] != "timeout":
+                result["time"] = float(final["time"]) + float(final["run time"]) + float(final["setup time"])
+            else:
+                result["time"] = "NaN"
 
             bugs = list((workfolder / "initial" / "stdout").read_text().splitlines())
             result["bugs"] = len(bugs)

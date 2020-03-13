@@ -140,7 +140,7 @@ examples = scope "examples" $ do
       predi <- createScript "predicate" $ "java -cp $1:$2 Main"
       cmd predi $ args .= [bench <.+> "/classes", bench <.+> "/lib"]
 
-    reductions <- onSuccess run . rules ["logic", "logic+approx", "logic+ddmin"] $ \strategy ->
+    reductions <- onSuccess run . rules ["logic", "logic+approx", "logic+ddmin", "items+hdd"] $ \strategy ->
       evaluate $ ( (defaultSettings run strategy)
                  { jreduceVersion = if Text.isSuffixOf "ddmin" strategy then "jreduce-ddmin" else "jreduce" }
                  )
@@ -163,7 +163,7 @@ main :: IO ()
 main = defaultMain . collectLinks $ sequenceA
   [ examples
   -- , scope "part" $ evaluation ["classes", "logic", "logic+approx", "logic+ddmin"] 1 
-  , scope "full" $ evaluation ["classes", "logic", "logic+approx", "logic+ddmin", "logic+approx+rev", "logic+ddmin+rev"] 100
+  , scope "full" $ evaluation ["classes", "logic", "logic+approx", "logic+ddmin", "items+hdd"] 100
   ]
 
 resultCollector x = joinCsv resultFields x "result.csv"

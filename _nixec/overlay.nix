@@ -20,17 +20,21 @@ self: super:
 		'';
     installPhase = "mv benchmarks $out";
   };
-
-  # benchmarks = binary-reduction-benchmarks;
-    # super.stdenv.mkDerivation {
-    #   name = "benchmarks";
-    #   src = builtins.fetchurl {
-    #     url = file:///home/kalhauge/Work/Evaluartion/method-reduction/data/benchmarks.tar.gz;
-    #     sha256 = "0xq4nm8vvpgq0bj4nx6v0hmca3iryqlliga60x5qcqd1hal8j5pm";
-    #   };
-    #   unpackPhase = "tar -xf $src benchmarks/";
-    #   installPhase = "mv benchmarks $out";
-    # };
+  
+  jreduce-old = self.callPackage ./old-jreduce { 
+    artifact = super.stdenv.mkDerivation {
+      name = "jreduce-artifact-src";
+      src = self.binary-reduction-artifact;
+      buildInputs = (with self; [ unzip ]);
+      unpackPhase = ''
+        unzip $src 'esecfse2019-binary-reduction/jreduce/*' 'esecfse2019-binary-reduction/lib/*'
+      '';
+      installPhase = ''
+        mkdir -p $out
+        mv esecfse2019-binary-reduction/* $out
+      '';
+    };
+  };
 
   predicates =
     super.stdenv.mkDerivation {

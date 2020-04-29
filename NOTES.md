@@ -1,5 +1,4 @@
-
-# Removing benchmarks from dataset 
+# Benchmarks removed from the data-set
 
 ## Covariant Arrays
 

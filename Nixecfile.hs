@@ -64,6 +64,42 @@ evaluate JReduceSettings {..} = do
         ]
       ]
 
+evaluateOld :: JReduceSettings -> RuleM ()
+evaluateOld JReduceSettings {..} = do
+  benc   <- link "benchmark" (jreduceRunName <./> "benchmark")
+  predi  <- link "predicate" (jreduceRunName <./> "predicate")
+  fix <- link "fix.py" fixpy
+  -- expect  <- link "expectation" (jreduceRunName <./> "stdout")
+  -- stdlib <- link "stdlib.bin" (PackageInput "stubs")
+  path ["jreduce-old", "python3", "glibcLocales"]
+  env "LANG" "en_US.UTF-8"
+  cmd "jreduce" $ do 
+    args .= concat
+      [ [ "-W" , Output "workfolder"
+        , "-v" 
+        , "-T" , "3200"
+        -- , "--output-file", Output "reduced"
+        -- , "--stdlib", stdlib
+        , DebugArgs
+        ]
+      , [ "--stdout" | elem "out" jreducePreserve ]
+      , [ "--stderr" | elem "err" jreducePreserve ]
+      , jreduceArgs
+      , [ "-K" ]
+      , [ "--metrics", "workfolder/metrics2.csv"
+        -- , "--try-initial"
+        -- , "--ignore-failure"
+        -- , "--out", expect
+        -- , "--cp", "benchmark/lib", "benchmark/classes", "predicate" , "{}"
+        -- , "benchmark/lib"
+        , "--cp", benc <.+> "/lib", benc <.+> "/classes", predi , "{}"
+        , benc <.+> "/lib"
+        ]
+      ]
+  cmd "python3" $ do
+    args .= [ fix, Output "workfolder/metrics2.csv"]
+    stdout .= Just "workfolder/metrics.csv"
+
 evaluation :: [ Text.Text ] -> Int -> Nixec Rule
 evaluation strategies errors = do
   benchmarks <-
@@ -93,15 +129,18 @@ evaluation strategies errors = do
         cmd predi $ do
           args .= [benc <.+> "/classes", benc <.+> "/lib"]
 
-      reductions <- onSuccess run $ rules strategies $ \strategy -> do
-        env "MAX_ERRORS" (Text.pack . show $ errors)
-        case Text.stripSuffix "+rev" strategy of
-          Just strategy' -> 
-            evaluate ( (defaultSettings run strategy')
-                     { jreduceVersion = "jreduce", jreduceArgs = [ "--reverse-order"] }
-                    )
-          Nothing -> 
-            evaluate ( (defaultSettings run strategy) { jreduceVersion = "jreduce" } )
+      reductions <- onSuccess run . rules ("jreduce":strategies) $ \strategy -> do
+          env "MAX_ERRORS" (Text.pack . show $ errors)
+          case strategy of 
+            "jreduce" -> 
+              evaluateOld (defaultSettings run strategy)
+            _ -> case Text.stripSuffix "+rev" strategy of
+              Just strategy' -> 
+                evaluate ( (defaultSettings run strategy')
+                         { jreduceVersion = "jreduce", jreduceArgs = [ "--reverse-order"] }
+                        )
+              Nothing -> 
+                evaluate ( (defaultSettings run strategy) { jreduceVersion = "jreduce" } )
 
       collect $ do
         rs      <- asLinks (concat . maybeToList $ reductions)
@@ -118,17 +157,19 @@ evaluation strategies errors = do
    removeBadBenchmarks = 
     filter (\(n,_) -> n `notElem` 
         [ -- covariant arrays
-					"url22ade473db_sureshsajja_CodingProblems"
+          "url22ade473db_sureshsajja_CodingProblems"
         , "url2984a84cec_yusuke2255_relation_resolver"
         , "url484e914e4f_JasperZXY_TestJava" 
-				
-					-- overloads the stdlibrary	
+          -- overloads the stdlibrary
         , "url03c33a0cf1_m_m_m_java8_backports"
         ]
       )
 
 extractpy =
   FileInput "/home/kalhauge/Work/Evaluation/method-reduction/bin/extract.py"
+
+fixpy =
+  FileInput "/home/kalhauge/Work/Evaluation/method-reduction/bin/fix.py"
 
 examples = scope "examples" $ do
   let examplenames = ["main_example", "field", "throws", "lambda", "metadata"]
@@ -140,15 +181,26 @@ examples = scope "examples" $ do
       predi <- createScript "predicate" $ "java -cp $1:$2 Main"
       cmd predi $ args .= [bench <.+> "/classes", bench <.+> "/lib"]
 
-    reductions <- onSuccess run . rules ["logic", "logic+approx", "logic+ddmin", "items+hdd"] $ \strategy ->
-      evaluate $ ( (defaultSettings run strategy)
-                 { jreduceVersion = if Text.isSuffixOf "ddmin" strategy then "jreduce-ddmin" else "jreduce" }
-                 )
-        { jreduceKeepFolders = True
-        , jreduceArgs = [ "--core" , RegularArg $ "Main"
-                        , "--core" , RegularArg $ "Main.main:([Ljava/lang/String;)V!code"
-                        ]
-        }
+    reductions <- onSuccess run $ do
+    
+      jred <- rule "jreduce" $ evaluateOld (defaultSettings run "")
+          { jreduceKeepFolders = True
+          -- , jreduceArgs = [ "--core" , RegularArg $ "Main"
+          --                 ]
+          }
+   
+    
+      reds <- rules ["logic", "logic+approx", "logic+ddmin", "items+hdd"] $ \strategy ->
+        evaluate $ ( (defaultSettings run strategy)
+                   { jreduceVersion = if Text.isSuffixOf "ddmin" strategy then "jreduce-ddmin" else "jreduce" }
+                   )
+          { jreduceKeepFolders = True
+          , jreduceArgs = [ "--core" , RegularArg $ "Main"
+                          , "--core" , RegularArg $ "Main.main:([Ljava/lang/String;)V!code"
+                          ]
+          }
+
+      return $ jred:reds
 
     collect $ do
       rs      <- asLinks (concat . maybeToList $ reductions)

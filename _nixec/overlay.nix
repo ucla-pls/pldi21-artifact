@@ -4,11 +4,17 @@ self: super:
 
   examples = super.callPackage ../examples {};
 
-	binary-reduction-artifact = 
-    builtins.fetchurl {
-      url = https://zenodo.org/record/3262201/files/esecfse2019-binary-reduction.zip?download=1;
-      sha256 = "0ql5csmvrcc6x712wf4fbi2x7919jdqlgx0ialq36viahnddhs4g";
-    };
+  binary-reduction-artifact = import ../nix/fse19-artifact.nix;
+
+  decompilers = super.stdenv.mkDerivation {
+    name = "decompilers";
+    src = self.binary-reduction-artifact;
+    buildInputs = (with self; [ unzip ]);
+    unpackPhase = ''
+      unzip $src esecfse2019-binary-reduction/decompilers
+     '';
+    installPhase = "mv esecfse2019-binary-reduction/decompilers $out";
+  };
 
   benchmarks = super.stdenv.mkDerivation {
     name = "binary-reduction-artifact";
@@ -16,25 +22,25 @@ self: super:
     buildInputs = (with self; [ unzip ]);
     unpackPhase = ''
       unzip $src esecfse2019-binary-reduction/data/benchmarks.tar.gz 
-			tar -xf esecfse2019-binary-reduction/data/benchmarks.tar.gz benchmarks/
-		'';
+      tar -xf esecfse2019-binary-reduction/data/benchmarks.tar.gz benchmarks/
+   '';
     installPhase = "mv benchmarks $out";
   };
-  
-  jreduce-old = self.callPackage ./old-jreduce { 
-    artifact = super.stdenv.mkDerivation {
-      name = "jreduce-artifact-src";
-      src = self.binary-reduction-artifact;
-      buildInputs = (with self; [ unzip ]);
-      unpackPhase = ''
-        unzip $src 'esecfse2019-binary-reduction/jreduce/*' 'esecfse2019-binary-reduction/lib/*'
-      '';
-      installPhase = ''
-        mkdir -p $out
-        mv esecfse2019-binary-reduction/* $out
-      '';
-    };
+
+  artifact-src = super.stdenv.mkDerivation {
+    name = "jreduce-artifact-src";
+    src = self.binary-reduction-artifact;
+    buildInputs = (with self; [ unzip ]);
+    unpackPhase = ''
+      unzip $src 'esecfse2019-binary-reduction/jreduce/*' 'esecfse2019-binary-reduction/lib/*'
+    '';
+    installPhase = ''
+      mkdir -p $out
+      mv esecfse2019-binary-reduction/* $out
+    '';
   };
+  
+  jreduce-old = self.callPackage ./old-jreduce { artifact = self.artifact-src; };
 
   predicates =
     super.stdenv.mkDerivation {

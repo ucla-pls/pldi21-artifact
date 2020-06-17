@@ -1,4 +1,4 @@
-{ stdenv, openjdk}:
+{ stdenv, openjdk }:
 let 
   mkExample = name: folder:
     stdenv.mkDerivation {

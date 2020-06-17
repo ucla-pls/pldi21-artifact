@@ -5,7 +5,7 @@
 }:
 import fpkgs { 
   overlays = [ 
-    (import ./overlay.nix)
+    (self: import ./overlay.nix)
     (self: super: {
       jreduce = import jreduce { pkgs = super; };
       javaq   = import javaq   { pkgs = super; };

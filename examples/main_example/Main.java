@@ -1,6 +1,7 @@
 public class Main {
+  public String m (I a) { return a.m(); }
+
   public static void main (String [] args) { 
-    I i = new A();
-    System.out.println(i.m());
+    System.out.println(new Main().m(new A()));
   }
 }

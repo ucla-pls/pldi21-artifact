@@ -40,11 +40,11 @@ evaluate JReduceSettings {..} = do
   predi  <- link "predicate" (jreduceRunName <./> "predicate")
   expect  <- link "expectation" (jreduceRunName <./> "stdout")
   stdlib <- link "stdlib.bin" (PackageInput "stubs")
-  path [packageFromText $ "haskellPackages." <> jreduceVersion]
-  cmd "jreduce" $ do 
+  path [packageFromText $ jreduceVersion]
+  cmd "jreduce" $ do
     args .= concat
       [ [ "-W" , Output "workfolder"
-        , "-v" , "-p" 
+        , "-v" , "-p"
         , RegularArg (Text.intercalate "," jreducePreserve)
         , "--total-time" , "3200"
         , "--strategy" , RegularArg jreduceStrategy
@@ -68,18 +68,16 @@ evaluateOld :: JReduceSettings -> RuleM ()
 evaluateOld JReduceSettings {..} = do
   benc   <- link "benchmark" (jreduceRunName <./> "benchmark")
   predi  <- link "predicate" (jreduceRunName <./> "predicate")
-  fix <- link "fix.py" fixpy
+  fix <- link "fix.py" (PackageInput "fixpy")
   -- expect  <- link "expectation" (jreduceRunName <./> "stdout")
   -- stdlib <- link "stdlib.bin" (PackageInput "stubs")
   path ["jreduce-old", "python3", "glibcLocales"]
   env "LANG" "en_US.UTF-8"
-  cmd "jreduce" $ do 
+  cmd "jreduce" $ do
     args .= concat
       [ [ "-W" , Output "workfolder"
-        , "-v" 
+        , "-v"
         , "-T" , "3200"
-        -- , "--output-file", Output "reduced"
-        -- , "--stdlib", stdlib
         , DebugArgs
         ]
       , [ "--stdout" | elem "out" jreducePreserve ]
@@ -87,11 +85,6 @@ evaluateOld JReduceSettings {..} = do
       , jreduceArgs
       , [ "-K" ]
       , [ "--metrics", "workfolder/metrics2.csv"
-        -- , "--try-initial"
-        -- , "--ignore-failure"
-        -- , "--out", expect
-        -- , "--cp", "benchmark/lib", "benchmark/classes", "predicate" , "{}"
-        -- , "benchmark/lib"
         , "--cp", benc <.+> "/lib", benc <.+> "/classes", predi , "{}"
         , benc <.+> "/lib"
         ]
@@ -103,7 +96,6 @@ evaluateOld JReduceSettings {..} = do
 evaluation :: [ Text.Text ] -> Int -> Nixec Rule
 evaluation strategies errors = do
   benchmarks <-
-    -- fmap (take 10)
     fmap (List.sort . removeBadBenchmarks)
     . listFiles (PackageInput "benchmarks")
     $ Text.stripSuffix "_tgz-pJ8"
@@ -115,7 +107,7 @@ evaluation strategies errors = do
     . scopesBy fst benchmarks
     $ \(name, benchmark) -> collect $ do
         benc <- link "benchmark" benchmark
-        path ["haskellPackages.javaq"]
+        path ["javaq"]
         cmd "javaq" $ do
           args .= ["class-metrics+csv", "--cp", benc <.+> "/classes"]
           stdout .= Just "size.csv"
@@ -131,15 +123,15 @@ evaluation strategies errors = do
 
       reductions <- onSuccess run . rules ("jreduce":strategies) $ \strategy -> do
           env "MAX_ERRORS" (Text.pack . show $ errors)
-          case strategy of 
-            "jreduce" -> 
+          case strategy of
+            "jreduce" ->
               evaluateOld (defaultSettings run strategy)
             _ -> case Text.stripSuffix "+rev" strategy of
-              Just strategy' -> 
+              Just strategy' ->
                 evaluate ( (defaultSettings run strategy')
                          { jreduceVersion = "jreduce", jreduceArgs = [ "--reverse-order"] }
                         )
-              Nothing -> 
+              Nothing ->
                 evaluate ( (defaultSettings run strategy) { jreduceVersion = "jreduce" } )
 
       collect $ do
@@ -151,25 +143,21 @@ evaluation strategies errors = do
           args .= extract : RegularArg name : RegularArg predicate : rs
           stdout .= Just "result.csv"
         exists "result.csv"
- where 
+ where
    predicateNames = ["cfr", "fernflower", "procyon"]
 
-   removeBadBenchmarks = 
-    filter (\(n,_) -> n `notElem` 
+   removeBadBenchmarks =
+    filter (\(n,_) -> n `notElem`
         [ -- covariant arrays
           "url22ade473db_sureshsajja_CodingProblems"
         , "url2984a84cec_yusuke2255_relation_resolver"
-        , "url484e914e4f_JasperZXY_TestJava" 
+        , "url484e914e4f_JasperZXY_TestJava"
           -- overloads the stdlibrary
         , "url03c33a0cf1_m_m_m_java8_backports"
         ]
       )
 
-extractpy =
-  FileInput "/home/kalhauge/Work/Evaluation/method-reduction/bin/extract.py"
-
-fixpy =
-  FileInput "/home/kalhauge/Work/Evaluation/method-reduction/bin/fix.py"
+extractpy = PackageInput "extractpy"
 
 examples = scope "examples" $ do
   let examplenames = ["main_example", "field", "throws", "lambda", "metadata"]
@@ -182,22 +170,17 @@ examples = scope "examples" $ do
       cmd predi $ args .= [bench <.+> "/classes", bench <.+> "/lib"]
 
     reductions <- onSuccess run $ do
-    
       jred <- rule "jreduce" $ evaluateOld (defaultSettings run "")
           { jreduceKeepFolders = True
-          -- , jreduceArgs = [ "--core" , RegularArg $ "Main"
-          --                 ]
+          -- , jreduceArgs = [ "--core" , RegularArg $ "Main" ]
           }
-   
-    
-      reds <- rules ["logic", "logic+approx", "logic+ddmin", "items+hdd"] $ \strategy ->
-        evaluate $ ( (defaultSettings run strategy)
-                   { jreduceVersion = if Text.isSuffixOf "ddmin" strategy then "jreduce-ddmin" else "jreduce" }
-                   )
+      reds <- rules ["classes", "logic", "logic+single"] $ \strategy ->
+        evaluate $ ( defaultSettings run strategy)
           { jreduceKeepFolders = True
-          , jreduceArgs = [ "--core" , RegularArg $ "Main"
-                          , "--core" , RegularArg $ "Main.main:([Ljava/lang/String;)V!code"
-                          ]
+          , jreduceArgs = []
+                          -- [ "--core" , RegularArg $ "Main"
+                          -- , "--core" , RegularArg $ "Main.main:([Ljava/lang/String;)V!code"
+                          -- ]
           }
 
       return $ jred:reds
@@ -214,8 +197,7 @@ examples = scope "examples" $ do
 main :: IO ()
 main = defaultMain . collectLinks $ sequenceA
   [ examples
-  -- , scope "part" $ evaluation ["classes", "logic", "logic+approx", "logic+ddmin"] 1 
-  , scope "full" $ evaluation ["classes", "logic", "logic+approx", "logic+ddmin", "items+hdd"] 100
+  , scope "full" $ evaluation ["classes", "logic", "logic+single"] 100
   ]
 
 resultCollector x = joinCsv resultFields x "result.csv"

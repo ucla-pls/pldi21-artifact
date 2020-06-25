@@ -34,6 +34,8 @@ defaultSettings run strategy = JReduceSettings
   , jreduceArgs        = []
   }
 
+timeout = "86400" -- 24h
+
 evaluate :: JReduceSettings -> RuleM ()
 evaluate JReduceSettings {..} = do
   benc   <- link "benchmark" (jreduceRunName <./> "benchmark")
@@ -46,7 +48,7 @@ evaluate JReduceSettings {..} = do
       [ [ "-W" , Output "workfolder"
         , "-v" , "-p"
         , RegularArg (Text.intercalate "," jreducePreserve)
-        , "--total-time" , "3200"
+        , "--total-time" , timeout
         , "--strategy" , RegularArg jreduceStrategy
         , "--output-file", Output "reduced"
         , "--stdlib", stdlib
@@ -77,7 +79,7 @@ evaluateOld JReduceSettings {..} = do
     args .= concat
       [ [ "-W" , Output "workfolder"
         , "-v"
-        , "-T" , "3200"
+        , "-T" , timeout
         , DebugArgs
         ]
       , [ "--stdout" | elem "out" jreducePreserve ]
@@ -103,16 +105,33 @@ evaluation strategies errors = do
 
   cn <-
     scope "sizes"
-    . collectWith (\x -> joinCsv [] x "size.csv")
+    . collectWith (\x -> do
+      countcnfs <- link "countcnfs.py" (PackageInput "countcnfs")
+      path ["python3"]
+      cmd "python3" $ do
+        args .= [countcnfs, Input "."]
+        stdout .= Just "cnfs.csv"
+      )
     . scopesBy fst benchmarks
     $ \(name, benchmark) -> collect $ do
         benc <- link "benchmark" benchmark
-        path ["javaq"]
+        stdlib <- link "stdlib.bin" (PackageInput "stubs")
+        path ["javaq", "jreduce"]
         cmd "javaq" $ do
           args .= ["class-metrics+csv", "--cp", benc <.+> "/classes"]
           stdout .= Just "size.csv"
+        cmd "jreduce" $ do
+          args .=
+            [ "-W" , Output "workfolder"
+            , "--strategy" , "items+logic"
+            , "--dump-logic"
+            , "--output-file", Output "reduced"
+            , "--max-iterations", "1"
+            , "--stdlib", stdlib
+            , "--cp", benc <.+> "/lib", benc <.+> "/classes", "true"
+            ]
 
-  collectWith resultCollector . scopesBy fst benchmarks $ \(name, benchmark) ->
+  collectWith (fullCollector cn) . scopesBy fst benchmarks $ \(name, benchmark) ->
     collectWith resultCollector . scopes predicateNames $ \predicate -> do
       run <- rule "run" $ do
         benc  <- link "benchmark" benchmark
@@ -144,18 +163,31 @@ evaluation strategies errors = do
           stdout .= Just "result.csv"
         exists "result.csv"
  where
-   predicateNames = ["cfr", "fernflower", "procyon"]
+  fullCollector :: RuleName -> [CommandArgument] -> RuleM ()
+  fullCollector sizes a = do
+    joinCsv resultFields a "result.csv"
+    minutes <- link "minutes.py" (PackageInput "minutespy")
+    minutes <- link "sizes" sizes
+    path ["evaluation"]
+    cmd "python3" $ do
+      args .= [ minutes, Input "."
+              , Output "classes.csv"
+              , Output "bytes.csv"
+              ]
+   where
+    resultFields = ["benchmark", "predicate", "strategy"]
 
-   removeBadBenchmarks =
-    filter (\(n,_) -> n `notElem`
-        [ -- covariant arrays
-          "url22ade473db_sureshsajja_CodingProblems"
-        , "url2984a84cec_yusuke2255_relation_resolver"
-        , "url484e914e4f_JasperZXY_TestJava"
-          -- overloads the stdlibrary
-        , "url03c33a0cf1_m_m_m_java8_backports"
-        ]
-      )
+
+  predicateNames = ["cfr", "fernflower", "procyon"]
+
+  removeBadBenchmarks = filter $ \(n,_) -> n `notElem`
+    [ -- covariant arrays
+     "url22ade473db_sureshsajja_CodingProblems"
+    , "url2984a84cec_yusuke2255_relation_resolver"
+    , "url484e914e4f_JasperZXY_TestJava"
+     -- overloads the stdlibrary
+    , "url03c33a0cf1_m_m_m_java8_backports"
+    ]
 
 extractpy = PackageInput "extractpy"
 
@@ -174,7 +206,7 @@ examples = scope "examples" $ do
           { jreduceKeepFolders = True
           -- , jreduceArgs = [ "--core" , RegularArg $ "Main" ]
           }
-      reds <- rules ["classes", "logic"] $ \strategy ->
+      reds <- rules ["classes", "classes+logic", "items+logic"] $ \strategy ->
         evaluate $ ( defaultSettings run strategy)
           { jreduceKeepFolders = True
           , jreduceArgs = []
@@ -197,7 +229,7 @@ examples = scope "examples" $ do
 main :: IO ()
 main = defaultMain . collectLinks $ sequenceA
   [ examples
-  , scope "full" $ evaluation ["classes", "logic"] 100
+  , scope "full" $ evaluation ["classes", "classes+logic", "items+logic"] 100
   ]
 
 resultCollector x = joinCsv resultFields x "result.csv"

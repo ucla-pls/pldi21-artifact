@@ -25,7 +25,12 @@ import nixec-src {
           javaq = hpkgs.javaq;
           examples = super.callPackage examples {};
           extractpy = ./bin/extract.py;
+          minutespy = ./bin/minutes.py;
+          countcnfs = ./bin/countcnfs.py;
           fixpy = ./bin/fix.py;
+          evaluation = self.python3.withPackages (pkgs: with pkgs;
+            [ numpy matplotlib pandas ]
+            );
         }
       )
     ];

@@ -167,7 +167,7 @@ evaluation strategies errors = do
   fullCollector sizes a = do
     joinCsv resultFields a "result.csv"
     minutes <- link "minutes.py" (PackageInput "minutespy")
-    minutes <- link "sizes" sizes
+    sizes <- link "sizes" sizes
     path ["evaluation"]
     cmd "python3" $ do
       args .= [ minutes, Input "."

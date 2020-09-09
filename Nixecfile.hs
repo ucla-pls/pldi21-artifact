@@ -206,7 +206,7 @@ examples = scope "examples" $ do
           { jreduceKeepFolders = True
           -- , jreduceArgs = [ "--core" , RegularArg $ "Main" ]
           }
-      reds <- rules ["classes", "classes+logic", "items+logic"] $ \strategy ->
+      reds <- rules ["classes", "items+logic"] $ \strategy ->
         evaluate $ ( defaultSettings run strategy)
           { jreduceKeepFolders = True
           , jreduceArgs = []
@@ -229,7 +229,7 @@ examples = scope "examples" $ do
 main :: IO ()
 main = defaultMain . collectLinks $ sequenceA
   [ examples
-  , scope "full" $ evaluation ["classes", "classes+logic", "items+logic"] 100
+  , scope "full" $ evaluation ["classes", "items+logic"] 100
   ]
 
 resultCollector x = joinCsv resultFields x "result.csv"

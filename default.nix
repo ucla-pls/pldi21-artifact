@@ -31,6 +31,9 @@ import nixec-src {
           evaluation = self.python3.withPackages (pkgs: with pkgs;
             [ numpy matplotlib pandas ]
             );
+          my-shell = self.mkShell {
+            buildInputs = [ self.jreduce-old ];
+          };
         }
       )
     ];

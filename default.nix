@@ -18,10 +18,11 @@ import nixec-src {
         let
           hpkgs = self.haskellPackages.extend (
             super.haskell.lib.packageSourceOverrides
-            { inherit (fix) jreduce javaq jvmhs jvm-binary reduce reduce-util dirtree hspec-hedgehog; }
+            { inherit (fix) jreduce jreduce-prev javaq jvmhs jvm-binary reduce reduce-util dirtree hspec-hedgehog; }
             );
         in
         { jreduce = self.haskell.lib.enableExecutableProfiling hpkgs.jreduce;
+          jreduce-prev = self.haskell.lib.enableExecutableProfiling hpkgs.jreduce-prev;
           javaq = hpkgs.javaq;
           examples = super.callPackage examples {};
           extractpy = ./bin/extract.py;

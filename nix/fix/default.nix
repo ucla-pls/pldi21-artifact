@@ -1,10 +1,11 @@
 self:
 {
-  dirtree     = import ./dirtree.nix;
-  javaq       = import ./javaq.nix;
-  jreduce     = import ./jreduce.nix;
-  jvm-binary  = import ./jvm-binary.nix;
-  jvmhs       = import ./jvmhs.nix;
+  dirtree      = import ./dirtree.nix;
+  javaq        = import ./javaq.nix;
+  jreduce      = import ./jreduce.nix;
+  jreduce-prev = import ./jreduce-prev.nix;
+  jvm-binary   = import ./jvm-binary.nix;
+  jvmhs        = import ./jvmhs.nix;
 
   hspec-hedgehog = import ./hspec-hedgehog.nix;
 

@@ -145,13 +145,7 @@ evaluation strategies errors = do
           case strategy of
             "jreduce" ->
               evaluateOld (defaultSettings run strategy)
-            _ -> case Text.stripSuffix "+rev" strategy of
-              Just strategy' ->
-                evaluate ( (defaultSettings run strategy')
-                         { jreduceVersion = "jreduce", jreduceArgs = [ "--reverse-order"] }
-                        )
-              Nothing ->
-                evaluate ( (defaultSettings run strategy) { jreduceVersion = "jreduce" } )
+            _ -> evaluate ((defaultSettings run strategy) { jreduceVersion = "jreduce" } )
 
       collect $ do
         rs      <- asLinks (concat . maybeToList $ reductions)
@@ -206,7 +200,7 @@ examples = scope "examples" $ do
           { jreduceKeepFolders = True
           -- , jreduceArgs = [ "--core" , RegularArg $ "Main" ]
           }
-      reds <- rules ["classes", "items+logic"] $ \strategy ->
+      reds <- rules ["classes", "items+logic", "items+graph+first", "items+graph+last"] $ \strategy ->
         evaluate $ ( defaultSettings run strategy)
           { jreduceKeepFolders = True
           , jreduceArgs = []
@@ -229,7 +223,9 @@ examples = scope "examples" $ do
 main :: IO ()
 main = defaultMain . collectLinks $ sequenceA
   [ examples
-  , scope "full" $ evaluation ["classes", "items+logic"] 100
+  , scope "full" $ evaluation [
+                              "classes", "items+logic", "items+graph+first",
+                              "items+graph+last"] 100
   ]
 
 resultCollector x = joinCsv resultFields x "result.csv"

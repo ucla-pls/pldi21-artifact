@@ -3,11 +3,12 @@
 import sys
 import csv
 import re
+import json
 import itertools
 from pathlib import Path
 from contextlib import contextmanager
 from collections import defaultdict
-from subprocess import run, PIPE
+from subprocess import run, check_output, PIPE
 from tempfile import TemporaryDirectory
 
 def main(name, predicate, folders):
@@ -19,7 +20,7 @@ def main(name, predicate, folders):
 
         result = defaultdict(lambda: "")
 
-        result.update( 
+        result.update(
             predicate=predicate,
             name=name,
             strategy=strategy,
@@ -29,7 +30,7 @@ def main(name, predicate, folders):
             status = "success"
             for line in log:
                 match = timeoutre.findall(line)
-                if match: 
+                if match:
                     status = "timeout"
                     break
             result['status'] = status
@@ -51,7 +52,7 @@ def main(name, predicate, folders):
             result["iters"] = int(final["folder"])
             result["setup-time"] = float(rows[0]["time"])
             result["flaky"] = rows[0]["judgment"] != "success"
-           
+
             hits = set()
             for x in rows:
                 hits.add(int(x["count"]))
@@ -65,28 +66,47 @@ def main(name, predicate, folders):
             else:
                 result["time"] = "NaN"
 
+
             bugs = list((workfolder / "initial" / "stdout").read_text().splitlines())
             result["bugs"] = len(bugs)
             bugs = set(bugs)
-           
+
+            initial_sandbox = workfolder / "initial" / "sandbox"
+            if initial_sandbox.exists():
+                output = check_output(["cloc", "--json", initial_sandbox], text=True)
+                initial_lines = json.loads(output).get("Java", {}).get("code", 0)
+            else:
+                initial_lines = 0
+
+            final_sandbox = workfolder / "final" / "sandbox"
+            if final_sandbox.exists():
+                output = check_output(["cloc", "--json", final_sandbox], text=True)
+                lines = json.loads(output).get("Java", {}).get("code", 0)
+            else:
+                lines = 0
+
+            result["initial-lines"] = initial_lines
+            result["lines"] = lines
+
             result["verify"] = "success"
             for path in sorted(workfolder.glob("*/*/stdout")):
                 found_bugs = set(path.read_text().splitlines())
                 if bugs < found_bugs:
                     result["verify"] = str(path.parent.name)
                     break
-        
+
         except FileNotFoundError as e:
             result['status'] = "catastrophe"
-        
-       
+
+
         results.append(result)
 
-    wr = csv.DictWriter(sys.stdout, 
-            ["name", "predicate", "strategy", 
-                "bugs", "initial-scc", "scc", "initial-classes", "classes", 
-                "initial-bytes", "bytes", 
-                "iters", "searches", "setup-time", "time", 
+    wr = csv.DictWriter(sys.stdout,
+            ["name", "predicate", "strategy",
+                "bugs", "initial-scc", "scc", "initial-classes", "classes",
+                "initial-bytes", "bytes",
+                "initial-lines", "lines",
+                "iters", "searches", "setup-time", "time",
                 "status", "verify", "flaky"]
             )
     wr.writeheader()

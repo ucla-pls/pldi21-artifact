@@ -150,7 +150,7 @@ evaluation strategies errors = do
       collect $ do
         rs      <- asLinks (concat . maybeToList $ reductions)
         extract <- link "extract.py" extractpy
-        needs ["run" ~> run]
+        needs ["run" ~> run, OnPath "cloc"]
         path ["python3"]
         cmd "python3" $ do
           args .= extract : RegularArg name : RegularArg predicate : rs

@@ -3,3 +3,5 @@ benchmarks
 .ipynb_checkpoints/
 result
 _nixec/database
+figures/*.png
+figures/*.eps

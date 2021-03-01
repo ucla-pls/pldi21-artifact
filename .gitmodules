@@ -1,0 +1,6 @@
+[submodule "source/reduce"]
+	path = source/reduce
+	url = https://github.com/ucla-pls/reduce
+[submodule "source/jreduce"]
+	path = source/jreduce
+	url = https://github.com/ucla-pls/jreduce

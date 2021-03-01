@@ -1,5 +1,7 @@
 # PLDI'21 "Logic Input Reduction" Artifact
 
+## Getting Started Guide
+
 ## Versions
 
 ```nix
@@ -9,6 +11,8 @@ nix (Nix) 2.3.3
 $ nixos-version
 19.09.2518.8260cd5bc65 (Loris)
 ```
+
+All other versions are defined by nix-files.
 
 ## Building the run database
 
@@ -110,3 +114,35 @@ nix-build \
   --arg overrides '{jreduce=~/Develop/projects/jreduce}'
 ```
 
+## Step-by-Step instruction
+
+This artifact support xx parts of the paper:
+
+1. A record of the code and full logical model used to do the reduction of
+   real Java Bytecode.
+
+2. The example in Section 2, and again in 4.5.
+
+3. The evaluation in Section 5.
+
+### The source code
+
+The source code is located in
+
+
+### Example
+
+```bash
+$ nix-shell -A all --arg target example.
+```
+
+### Evaluation
+
+```bash
+$ nix-shell -A all --run 'nixec list --check'
+$ nix-build -A rules --arg target nixecdb/rules/all.rule.nix
+$ nix-shell nix/jupyter.nix --run 'jupyter notebook'
+```
+
+Open the Jupyter Notebook named 'Evaluation Of Logical Program Reduction.ipynb', and
+follow the instructions to recreate all the evaluation results of the paper.

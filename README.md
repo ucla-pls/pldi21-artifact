@@ -1,10 +1,14 @@
-# (485) PLDI'21 "Logic Input Reduction" Artifact
+# (485) PLDI'21 "Logical Input Reduction" Artifact
+
+By Christian Kalhauge and Jens Palsberg
 
 - Version: 1.0
 
 ## Getting Started Guide
 
-## Versions
+
+
+### Versions
 
 ```nix
 $ nix --version
@@ -121,7 +125,7 @@ nix-build \
 
 ## Step-by-Step instruction
 
-This artifact support xx parts of the paper:
+This artifact support three parts of the paper:
 
 1. A record of the code and full logical model used to do the reduction of
    real Java Bytecode.
@@ -333,7 +337,8 @@ workfolder/reduction/0001/
 
 ### Evaluation
 
-You should be able to run the evaluation by running the following steps.
+You should be able to run the evaluation from section 5 by running the
+following steps.
 
 Because this is obviously way to long to evaluate the results, we have included the
 results of running the code in different stages
@@ -379,6 +384,5 @@ results of running the code in different stages
   If you want to run the analysis on the results you created make sure to change the folder variable
   in `In [2]`.
 
-4. We have also made a copy of our run of the Notebook in `pre-calculated/evaluation.html`.
-
+4. We have also made a copy of our run of the Notebook in `pre-calculated/evaluation.html`, which you should be able to open with a normal browser
 

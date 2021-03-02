@@ -333,18 +333,52 @@ workfolder/reduction/0001/
 
 ### Evaluation
 
-You should be able to run the evaluation by running the following steps. It will however take
-a around 459 hours.
+You should be able to run the evaluation by running the following steps.
 
-```bash
-$ nix-build -A rules --arg target nixecdb/rules/all.rule.nix
-```
+Because this is obviously way to long to evaluate the results, we have included the
+results of running the code in different stages
 
-Nix allows for caching results. And we have included all the results in the code.
+1. You can build everything from scratch (**NOTE:** It will take around 459 hours to compute)
+  ```bash
+  $ nix-build -A rules --arg target nixecdb/rules/all.rule.nix
+  ...
+  /nix/store/5v6xghid3s569bwcipasynlyi6d5v2yw-all
+  ```
 
-```
-$ nix-shell nix/jupyter.nix --run 'jupyter notebook'
-```
+  Now `result` should point to `/nix/store/5v6xghid3s569bwcipasynlyi6d5v2yw-all`, and
+  should contain a file tree of the different experiments run. Each folder contain a
+  `run.sh` file which indicate what operation where run in that folder to genererate the
+  files you see.
 
-Open the Jupyter Notebook named 'Evaluation Of Logical Program Reduction.ipynb', and
-follow the instructions to recreate all the evaluation results of the paper.
+2. You can use the nix cache that we have included in `pre-caluclated`:
+  ```bash
+  $ bzip2 -d pre-calculated/cache.nar.bzip2 | nix-store --import
+  ```
+  This might take some time but after that running the script from before should
+  take 10-20 s, as it is only finding the files from before.
+
+  ```bash
+  $ nix-build -A rules --arg target nixecdb/rules/all.rule.nix
+  /nix/store/5v6xghid3s569bwcipasynlyi6d5v2yw-all
+  ```
+
+  Now you should be ready to explore the filetree.
+
+3. We have included the important results in `.csv` files in `pre-calculated`, which you
+  can use to reproduce the evaluation results. The csv files are from another run than the
+  one reported in the paper, so there are some difference in time.
+
+  You can explore the data interactively in the `evaluation.ipynb` Jupyter
+  Notebook. It explains how to recreate the results of the paper. You can open
+  jupyter using the following command:
+
+  ```bash
+  $ nix-shell nix/jupyter.nix --run 'jupyter notebook'
+  ```
+
+  If you want to run the analysis on the results you created make sure to change the folder variable
+  in `In [2]`.
+
+4. We have also made a copy of our run of the Notebook in `pre-calculated/evaluation.html`.
+
+

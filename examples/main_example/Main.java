@@ -1,7 +1,7 @@
 public class Main {
-  public String m (I a) { return a.m(); }
+  public String x (I a) { return a.m(); }
 
-  public static void main (String [] args) { 
-    System.out.println(new Main().m(new A()));
+  public static void main (String [] args) {
+    System.out.println(new Main().x(new A()));
   }
 }

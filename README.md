@@ -4,13 +4,72 @@ By Christian Kalhauge and Jens Palsberg
 
 - Version: 1.0
 
+The artifact have three main sections:
+
+1. *Getting Started Guide:* This is a short introduction to the artifact and
+   explanation of how setup system.
+
+2. *Step-by-Step instruction:* Lists the findings supported by the artifact,
+   and show how to reproduce the results.
+
+2. *Going Above and Beyond:* Talks about how to make changes to the system to
+   support extension or further research.
+
 ## Getting Started Guide
 
+This artifact is a little different than other artifacts, because we have gone
+into great lengths in making every decission we have made repoducible and
+inspectable from first principles.
 
+To make sure that everything is repoducible we use several technologies: the most
+prominent is nix. Nix is a purly functional package mananger which ensures that
+(almost) every build is repoducible. We strongly recommend reading more about it
+on [their homepage](nixos.org). You can install it on most systemst however the
+derivations that we have created have been created on a NixOS machine.
 
-### Versions
+The artifact is structured like this:
 
-```nix
+```bash
+.
+├── bin
+│   -- A number of python scripts used for extracting the data.
+├── decompilers
+│   -- The decompilers that we have bugs in.
+├── evaluation.ipynb
+│   -- A Jupyter Notebook which reproduces the evaluation.
+├── examples
+│   -- A list of small examples which we run J-Reduce on.
+├── figures
+│   -- This is where the Jupyter Notebook puts the figures we use in the paper.
+├── pldi21-paper485.pdf
+│   -- This is the paper
+├── pldi21-paper485-supplemental_text.pdf
+│   -- This is the supplemental text
+├── pre-calculated
+│   -- This is where we have put our results to reduce the time needed to
+│   -- evaluate the artifact
+├── predicate
+│   -- Contains the predicates that we used when doing reduction.
+├── source
+│   -- Contains the source code of J-Reduce.
+├── README.md
+│   -- This file.
+├── Nixecfile.hs
+│   -- This file describes how we have setup the evaluation. It's written in
+│   -- a DSL in haskell, but we have commented it to give an impression on
+│   -- what is going on.
+├── nix
+│   -- This is where we have defined the versions of all dependencies of the
+|   -- evaluation.
+├── Vagrantfile
+│   -- A vagrant file which enable running a VM.
+└── default.nix
+    -- This is the main entry point for all our nix operations.
+```
+
+### Step 0.
+
+```bash
 $ nix --version
 nix (Nix) 2.3.3
 
@@ -18,17 +77,54 @@ $ nixos-version
 19.09.2518.8260cd5bc65 (Loris)
 ```
 
-All other versions are defined by nix-files.
+This evaluation uses Nix to make all builds reproducible. So either
 
-## Building the run database
+-  Install [nix (linux only)](https://nixos.org/download.html#nix-quick-install) on your system.
 
-We can build the rule database, like this:
+-  Install [NixOS](https://nixos.org/download.html#nixos-iso) as an operating system.
 
+-  Use the virtual box provided by their
+   [webpage](https://nixos.org/download.html#nixos-virtualbox)
+   SHA256(19d207036272cd5a5b17e0b43a65bdadfc4aaad94ccf2a5c7d1f1e7323e04841)
+
+-  Or (RECOMENDED) use [Vagrant](https://www.vagrantup.com/). Start by installing
+   vagrant, and then in this directory run
+
+   ```
+   vagrant up
+   vagrant ssh
+   cd /vagrant
+   ```
+
+   (Tested on VirtualBox 6.0 with unfree extra's)
+
+   NOTE: You might want to change the amount of memory you allow in the vagrant
+   file.
+
+### Caches (Optional).
+
+Load the caches. We have already done all of the calculations for you so you
+do not have to do all those things. You can skip this step, but some operations
+do take a long time.
+
+Install `pv` it's a nice tool to see your progress.
+
+```bash
+$ nix-env -iA nixos.pv
 ```
-$ nix-shell -A all --run 'nixec list --check'
+
+Now load the cache, the process bar will tell you how long times is left.
+
+```bash
+$ bzip2 -c -d pre-caluclated/cache.nar.bzip2 \
+  | pv -s 14g \
+  | sudo nix-store --option require-sigs false --import
 ```
 
-We can build all runs, by running
+### Getting the Results.
+
+With the caches loaded retrieving the full evaluation should take around 10s
+(otherwise it will take approx. 500 hours)
 
 ```bash
 $ nix-build -A rules --arg target nixecdb/rules/all.rule.nix
@@ -36,12 +132,10 @@ $ nix-build -A rules --arg target nixecdb/rules/all.rule.nix
 
 This should output a folder of results. If everything went well it should produce
 a `result` symbolic link to `/nix/store/wmaz3ll91hb2yc6126lnaa5mp921x4qq-all`.
-It can however take a long time to run, so you might
-want to you run a single item:
 
-```bash
-$ nix-build -A rules --arg target nixecdb/rules/full/url0067cdd33d_goldolphin_Mi/cfr/items+logic.rule.nix
-```
+You should be able to inspect the result tree, each folder correspond to a "rule" in
+the `nixecdb` database, and will contain a `run.sh` file. This file was run to get
+the results in that folder.
 
 ### Running the tool yourself
 
@@ -79,25 +173,7 @@ workfolder/
 └── reduction
     ├── 0000
     ├── 0002
-    ├── 0003
-    ├── 0004
-    ├── 0005
-    ├── 0006
-    ├── 0007
-    ├── 0008
-    ├── 0009
-    ├── 0010
-    ├── 0011
-    ├── 0012
-    ├── 0013
-    ├── 0014
-    ├── 0015
-    ├── 0016
-    ├── 0017
-    ├── 0018
-    ├── 0019
-    ├── 0020
-    ├── 0021
+    ...
     ├── 0022
     └── 0023
 
@@ -107,21 +183,18 @@ workfolder/
 Each subfolder contains the `run.sh` file which is what was run, and `input` which is
 what it was run on. `sandbox` contains the run of the code.
 
-## Running the examples with code changes
-
-Say you have updated the source code and want to run an example again. In this case
-you can use the `overrides` argument. Here we ask nix to build the example from before
-with but with a version of jreduce which we have in the folder `~/Develop/projects/jreduce`.
+You can open a shell on each rule in the `nixecdb`, even the aggregations and inspect how the different python tools extract the information from benchmarks after the runs.
 
 ```bash
-nix-build \
-  --arg target nixecdb/rules/full/url0067cdd33d_goldolphin_Mi/cfr/items+logic.rule.nix \
-  -A rules \
-  --arg overrides '{jreduce=~/Develop/projects/jreduce}'
+$ nix-shell -A rules --arg target nixecdb/rules/full.rule.nix
 ```
 
+You can also run the example from the paper: see the instructions in the Example
+part of the next section.
 
+### Installing J-Reduce Outside the Code
 
+You can also use J-Reduce without the code;
 
 ## Step-by-Step instruction
 
@@ -152,65 +225,66 @@ The code for Algorithm 1, is split over two functions. The code for the generali
 The code for generating the progression is listed in lines 144 - 157
 for `source/reduce/reduce-util/src/Control/Reduce/Progression.hs`
 
-The code for generating the graph order (Suplementary Material, B.2) is on lines 186 - 203, in the same file.
+The code for generating the graph order (Supplementary Material, B.2) is on lines 186 - 203, in the same file.
 
 The rest of the code is in the `source/reduce` folder to support reduction.
 
 The code to actually build the new version of `jreduce` is in `source/jreduce`, to
 read the source start in `source/jreduce/src/JReduce.hs`. There are more strategies
-avaiable than in our evalutation, but the interesting are
+available than in our evaluation, but the interesting are
 
-- "classes": Handeled by OverClases in (Line 109 - 115). The limited model is
-  described in `source/jreduce/src/JReduce/Classes.hs`. We can see here that
-  the possible items are Content or Target. Target is a folder of jars or
-  classes, Content is a jar or a class or any other file. We can see that the
-  Key is either a Class with some classname or a jar, metadata file or the base
-  of the reduction tree.
+-  "classes": Handled by OverClases in (Line 109 - 115). The limited model is
+   described in `source/jreduce/src/JReduce/Classes.hs`. We can see here that
+   the possible items are Content or Target. Target is a folder of jars or
+   classes, Content is a jar or a class or any other file. We can see that the
+   Key is either a Class with some classname or a jar, metadata file or the base
+   of the reduction tree.
 
-  The reduction is calculated by using the itemR which generate
-  a PartialReduction tree this explains which items depend on eachother. This structure
-  is fairly well documented in `source/reduce/reduce-util/src/Control/Reduce/Reduction.hs`
-  So we do not remove a jar file before removing all the contained classes.
+   The reduction is calculated by using the itemR which generate
+   a PartialReduction tree this explains which items depend on eachother. This
+   structure is fairly well documented in
+   `source/reduce/reduce-util/src/Control/Reduce/Reduction.hs` So we do not
+   remove a jar file before removing all the contained classes.
 
-  The keyFun calculates all the "referenctial" dependencies in the graph, The interesting
-  line is line 143 in which generate the dependencies from class `cls` to all classes
-  that is mentioned in `cls`: `toListOf classNames cls`.
+   The keyFun calculates all the "referential" dependencies in the graph, The interesting
+   line is line 143 in which generate the dependencies from class `cls` to all classes
+   that is mentioned in `cls`: `toListOf classNames cls`.
 
-- "items+logic": OverItemsLogic (Line 159 - 175 in the `JReduce.hs` file)
+-  "items+logic": OverItemsLogic (Line 159 - 175 in the `JReduce.hs` file)
 
-  This strategy uses all the bells an whistles of the reduction scheme. The interesting
-  file is `source/jreduce/src/JReduce/Logic.hs`. The `data Item` describes the
-  things that we can remove and `data Fact` are the variables that correspond
-  to those item still exist. The `itemR` function describes a `PartialReduction` like
-  before, however its a little more complicated.
+   This strategy uses all the bells an whistles of the reduction scheme. The interesting
+   file is `source/jreduce/src/JReduce/Logic.hs`. The `data Item` describes the
+   things that we can remove and `data Fact` are the variables that correspond
+   to those item still exist. The `itemR` function describes a `PartialReduction` like
+   before, however its a little more complicated.
 
-  Now for the meat of the project the paper, and the logical expression which
-  is used for doing the reduction. The function `logic` on line 621, takes a config,
-  a Class Hierarchy and an Item and produces the `Fact` which correspond to the item and
-  a Logical Statement with `Fact` as variables. We have tried to make the DSL self
-  documenting, here is a taste:
+   Now for the meat of the project the paper, and the logical expression which
+   is used for doing the reduction. The function `logic` on line 621, takes a config,
+   a Class Hierarchy and an Item and produces the `Fact` which correspond to the item and
+   a Logical Statement with `Fact` as variables. We have tried to make the DSL self
+   documenting, here is a taste:
 
-  ```haskell
-  IImplements (cls, ct) -> HasInterface (cls^.className) (ct^.simpleType)
-    `withLogic` \i ->
-    [ -- An Implements only depends on the interface that it implements, and
-      -- its type parameters.
-      i ==> requireClassNames cls ct
-    , -- Given that we should keep the extends
-      given keepHierarchy $ classExist cls ==> i
-    ]
-  ```
+   ```haskell
+   IImplements (cls, ct) -> HasInterface (cls^.className) (ct^.simpleType)
+     `withLogic` \i ->
+     [ -- An Implements only depends on the interface that it implements, and
+       -- its type parameters.
+       i ==> requireClassNames cls ct
+     , -- Given that we should keep the extends
+       given keepHierarchy $ classExist cls ==> i
+     ]
+   ```
 
-  So in this case the rule is if a class implements a type ct, then we require the
-  class `ct` to exist. In the config we are able to require that we should not
-  change the hierarchy, in which case we simply require that if the class exist then
-  the class should also implement `ct`.
+   So in this case the rule is if a class implements a type ct, then we require the
+   class `ct` to exist. In the config we are able to require that we should not
+   change the hierarchy, in which case we simply require that if the class exist then
+   the class should also implement `ct`.
 
-- "items+graph+first" and "items+graph+last": OverItemsGraph bool (Line 130 - 136 in `JReduce.hs`)
-  is described in the same way as "items+logic" but instead of using the logic
-  reduction approach it gennerates a graph (Line 575 in `Logic.hs`), where it
-  uses the boolean to choose either the smallest variable "minView" or the
-  largest variable "maxView" in each clause to generate edges (Line 581).
+-  "items+graph+first" and "items+graph+last": OverItemsGraph bool (Line 130 - 136 in `JReduce.hs`)
+   is described in the same way as "items+logic" but instead of using the logic
+   reduction approach it gennerates a graph (Line 575 in `Logic.hs`), where it
+   uses the boolean to choose either the smallest variable "minView" or the
+   largest variable "maxView" in each clause to generate edges (Line 581).
 
 ### Example
 
@@ -343,46 +417,124 @@ following steps.
 Because this is obviously way to long to evaluate the results, we have included the
 results of running the code in different stages
 
-1. You can build everything from scratch (**NOTE:** It will take around 459 hours to compute)
-  ```bash
-  $ nix-build -A rules --arg target nixecdb/rules/all.rule.nix
-  ...
-  /nix/store/5v6xghid3s569bwcipasynlyi6d5v2yw-all
-  ```
+1. You can build everything from scratch (**NOTE:** It will take around 459
+   hours to compute) by skipping the cache step in the `Getting Started Guide`.
 
-  Now `result` should point to `/nix/store/5v6xghid3s569bwcipasynlyi6d5v2yw-all`, and
-  should contain a file tree of the different experiments run. Each folder contain a
-  `run.sh` file which indicate what operation where run in that folder to genererate the
-  files you see.
+   ```bash
+   $ nix-build -A rules --arg target nixecdb/rules/all.rule.nix
+   ...
+   /nix/store/5v6xghid3s569bwcipasynlyi6d5v2yw-all
+   ```
 
-2. You can use the nix cache that we have included in `pre-caluclated`:
-  ```bash
-  $ bzip2 -d pre-calculated/cache.nar.bzip2 | nix-store --import
-  ```
-  This might take some time but after that running the script from before should
-  take 10-20 s, as it is only finding the files from before.
+   Now `result` should point to `/nix/store/5v6xghid3s569bwcipasynlyi6d5v2yw-all`, and
+   should contain a file tree of the different experiments run. Each folder contain a
+   `run.sh` file which indicate what operation where run in that folder to genererate the
+   files you see.
 
-  ```bash
-  $ nix-build -A rules --arg target nixecdb/rules/all.rule.nix
-  /nix/store/5v6xghid3s569bwcipasynlyi6d5v2yw-all
-  ```
+2. You can use the nix cache that we have included in `pre-caluclated`.
+   This might take some time but after that running the script from before should
+   take 10-20 s, as it is only finding the files from before.
 
-  Now you should be ready to explore the filetree.
+   ```bash
+   $ nix-build -A rules --arg target nixecdb/rules/all.rule.nix
+   /nix/store/5v6xghid3s569bwcipasynlyi6d5v2yw-all
+   ```
 
-3. We have included the important results in `.csv` files in `pre-calculated`, which you
-  can use to reproduce the evaluation results. The csv files are from another run than the
-  one reported in the paper, so there are some difference in time.
+   Now you should be ready to explore the filetree.
 
-  You can explore the data interactively in the `evaluation.ipynb` Jupyter
-  Notebook. It explains how to recreate the results of the paper. You can open
-  jupyter using the following command:
+3. We have included the important results in `.csv` files in `pre-calculated`,
+   which you can use to reproduce the evaluation results. The csv files are
+   from another run than the one reported in the paper, so there are some
+   difference in time.
 
-  ```bash
-  $ nix-shell nix/jupyter.nix --run 'jupyter notebook'
-  ```
+You can explore the data interactively in the `evaluation.ipynb` Jupyter
+Notebook. It explains how to recreate the results of the paper. You can open
+jupyter using the following command:
 
-  If you want to run the analysis on the results you created make sure to change the folder variable
-  in `In [2]`.
+```bash
+$ nix-shell nix/jupyter.nix --run 'jupyter notebook'
+```
 
-4. We have also made a copy of our run of the Notebook in `pre-calculated/evaluation.html`, which you should be able to open with a normal browser
+If you want to run the analysis on the results you created make sure to change the folder variable
+in `In [2]`.
 
+PS. We have also made a copy of our run of the Notebook in
+`pre-calculated/evaluation.html`, which you should be able to open with
+a normal browser
+
+
+### Benchmarks removed from the data-set
+
+Some benchmarks were removed from the dataset (as noted in the paper).
+
+#### Covariant Arrays
+
+You can cast arrays to other arrays, this is not enforced by the java
+type system.
+
+```java
+Object [] a = new Car[1];
+a[0] = "I'm not a car";
+```
+
+-   url22ade473db_sureshsajja_CodingProblems, because it contains a bug in the
+   compiler, which expolits Covarient Arrays.
+   [here](https://github.com/sureshsajja/CodingProblems/blob/master/src/main/java/com/coderevisited/generics/CovariantArrays.java)
+
+-  url2984a84cec_yusuke2255_relation_resolver, same problem
+
+-  url484e914e4f_JasperZXY_TestJava, same problem
+
+#### Overloads the std-library
+
+-  url03c33a0cf1_m_m_m_java8_backports. Reimplements many items in the stdlibrary. This
+   makes it hard to figure out items which were meant by the compiler.
+
+
+## Going above and beyond
+
+### Changing the evaluation
+
+The evaluation is written in the `Nixecfile.hs`. You can change how we process the
+benchmarks in this file. For example, you change the evaluation so that it only
+uses the first 5 benchmarks, by changing line 38 to `fmap (take 5) .`. To get
+the new results remove/move the `nixecdb` folder and run the following command:
+
+```
+$ nix-shell -A all --run 'nixec list --check -v'
+[    INFO] Started Nixec.
+[    INFO] Found Nixecfile: /vagrant/Nixecfile.hs
+[    INFO] | compute db | Starting
+[    INFO] | compute db | Calculating the database
+[    INFO] | | build | Starting
+[    INFO] | | build | Done in  1.773s
+[    INFO] | | build | Starting
+```
+
+That will recreate `nixecdb` with the new rules, but it might take some time.
+Any rule in the directory should be executable with the command:
+
+```bash
+$ nix-build -A rules --arg target <path-to-rule>
+```
+
+And explorable with:
+
+```bash
+$ nix-shell -A rules --arg target <path-to-rule>
+```
+
+### Running the examples with code changes
+
+Say you have updated the source code and want to run an example again. In this case
+you can use the `overrides` argument. Here we ask nix to build the example from before
+with but with a version of jreduce which we have in the folder `source/jreduce`.
+
+```bash
+nix-build \
+  --arg target nixecdb/rules/examples/main_example/items+logic.rule.nix \
+  -A rules \
+  --arg overrides '{jreduce=source/jreduce/; reduce-src=source/reduce/;}'
+```
+
+This will automatically build jreduce and run the benchmark.

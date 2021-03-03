@@ -3,5 +3,7 @@ benchmarks
 .ipynb_checkpoints/
 result
 _nixec/database
+pre-calculated/cache.nar.bzip2
 figures/*.png
 figures/*.eps
+.vagrant/

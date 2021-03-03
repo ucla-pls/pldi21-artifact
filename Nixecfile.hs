@@ -11,8 +11,159 @@ import qualified Data.List                     as List
 import qualified Data.Text                     as Text
 import           Nixec
 
-predicates :: Input
+-- Globals
+timeout = "86400" -- 24h
+extractpy = PackageInput "extractpy"
 predicates = PackageInput "predicates"
+
+-- | Run the examples and the full evaluation
+main :: IO ()
+main = defaultMain . collectLinks $ sequenceA
+  [ scope "examples" $ examples strategies
+  , scope "full" $ evaluation strategies 100
+  ]
+ where
+  strategies =
+    [ "classes"
+    , "items+logic"
+    , "items+graph+first"
+    , "items+graph+last"
+    ]
+
+evaluation :: [ Text.Text ] -> Int -> Nixec Rule
+evaluation strategies errors = do
+
+  -- Load the benchmarks from the 'benchmarks' package, remove the bad ones
+  benchmarks <-
+    -- MAYBE: take 5
+    fmap (List.sort . removeBadBenchmarks)
+    . listFiles (PackageInput "benchmarks")
+    $ Text.stripSuffix "_tgz-pJ8"
+    . Text.pack
+
+  -- Calculate the sizes of each each benchmark
+  cn <-
+    scope "sizes"
+    . collectWith (\x -> do
+      countcnfs <- link "countcnfs.py" (PackageInput "countcnfs")
+      path ["python3"]
+      cmd "python3" $ do
+        args .= [countcnfs, Input "."]
+        stdout .= Just "cnfs.csv"
+      )
+    . scopesBy fst benchmarks
+    $ \(name, benchmark) -> collect $ do
+        benc <- link "benchmark" benchmark
+        stdlib <- link "stdlib.bin" (PackageInput "stubs")
+        path ["javaq", "jreduce"]
+        cmd "javaq" $ do
+          args .= ["class-metrics+csv", "--cp", benc <.+> "/classes"]
+          stdout .= Just "size.csv"
+        cmd "jreduce" $ do
+          args .=
+            [ "-W" , Output "workfolder"
+            , "--strategy" , "items+logic"
+            , "--dump-logic"
+            , "--output-file", Output "reduced"
+            , "--max-iterations", "1"
+            , "--stdlib", stdlib
+            , "--cp", benc <.+> "/lib", benc <.+> "/classes", "true"
+            ]
+
+  -- For each benchmark
+  collectWith (fullCollector cn) . scopesBy fst benchmarks $ \(name, benchmark) ->
+    -- and for each predicate
+    collectWith resultCollector . scopes predicateNames $ \predicate -> do
+
+      -- Run the predicate on the benchmark
+      run <- rule "run" $ do
+        benc  <- link "benchmark" benchmark
+        predi <- link "predicate" $ predicates <./> toFilePath predicate
+        env "MAX_ERRORS" (Text.pack . show $ errors)
+        cmd predi $ do
+          args .= [benc <.+> "/classes", benc <.+> "/lib"]
+
+      -- If we find errors in the run, try to reduce them with each of the
+      -- strategies and jreduce. (see evaluate and evaluateOld)
+      reductions <- onSuccess run . rules ("jreduce":strategies) $ \strategy -> do
+          env "MAX_ERRORS" (Text.pack . show $ errors)
+          case strategy of
+            "jreduce" ->
+              evaluateOld (defaultSettings run strategy)
+            _ -> evaluate ((defaultSettings run strategy) { jreduceVersion = "jreduce" } )
+
+      -- Finally collect the reductions using `extract.py`
+      collect $ do
+        rs      <- asLinks (concat . maybeToList $ reductions)
+        extract <- link "extract.py" extractpy
+        needs ["run" ~> run, OnPath "cloc"]
+        path ["python3"]
+        cmd "python3" $ do
+          args .= extract : RegularArg name : RegularArg predicate : rs
+          stdout .= Just "result.csv"
+        exists "result.csv"
+ where
+  fullCollector :: RuleName -> [CommandArgument] -> RuleM ()
+  fullCollector sizes a = do
+    joinCsv resultFields a "result.csv"
+    minutes <- link "minutes.py" (PackageInput "minutespy")
+    sizes <- link "sizes" sizes
+    path ["evaluation"]
+    cmd "python3" $ do
+      args .= [ minutes, Input "."
+              , Output "classes.csv"
+              , Output "bytes.csv"
+              ]
+   where
+    resultFields = ["benchmark", "predicate", "strategy"]
+
+  predicateNames = ["cfr", "fernflower", "procyon"]
+
+  removeBadBenchmarks = filter $ \(n,_) -> n `notElem`
+    [ -- covariant arrays
+     "url22ade473db_sureshsajja_CodingProblems"
+    , "url2984a84cec_yusuke2255_relation_resolver"
+    , "url484e914e4f_JasperZXY_TestJava"
+     -- overloads the stdlibrary
+    , "url03c33a0cf1_m_m_m_java8_backports"
+    ]
+
+-- | Run the examples one by one
+examples :: [ Text.Text ] -> Nixec Rule
+examples strategies = do
+  let examplenames = ["main_example", "field", "throws", "lambda", "metadata"]
+  collectWith resultCollector . scopes examplenames $ \name -> do
+    run <- rule "run" $ do
+      bench <- link
+        "benchmark"
+        (PackageInput (fromString . Text.unpack $ "examples." <> name))
+      predi <- createScript "predicate" $ "java -cp $1:$2 Main"
+      cmd predi $ args .= [bench <.+> "/classes", bench <.+> "/lib"]
+
+    reductions <- onSuccess run $ do
+      jred <- rule "jreduce" $ evaluateOld (defaultSettings run "")
+          { jreduceKeepFolders = True
+          }
+      reds <- rules strategies $ \strategy ->
+        evaluate $ ( defaultSettings run strategy)
+          { jreduceKeepFolders = True
+          , jreduceArgs = []
+          }
+
+      return $ jred:reds
+
+    collect $ do
+      rs      <- asLinks (concat . maybeToList $ reductions)
+      extract <- link "test.py" extractpy
+      path ["python3"]
+      cmd "python3" $ do
+        args .= extract : RegularArg name : RegularArg "run" : rs
+        stdout .= Just "result.csv"
+      exists "result.csv"
+
+resultCollector x = joinCsv resultFields x "result.csv"
+  where resultFields = ["benchmark", "predicate", "strategy"]
+
 
 data JReduceSettings = JReduceSettings
   { jreduceRunName     :: RuleName
@@ -34,8 +185,9 @@ defaultSettings run strategy = JReduceSettings
   , jreduceArgs        = []
   }
 
-timeout = "86400" -- 24h
 
+-- | Shows how to setup the new J-Reduce with most interesting commandline
+-- arguments
 evaluate :: JReduceSettings -> RuleM ()
 evaluate JReduceSettings {..} = do
   benc   <- link "benchmark" (jreduceRunName <./> "benchmark")
@@ -66,6 +218,8 @@ evaluate JReduceSettings {..} = do
         ]
       ]
 
+-- | Shows how to setup the Old J-Reduce with most interesting commandline
+-- arguments
 evaluateOld :: JReduceSettings -> RuleM ()
 evaluateOld JReduceSettings {..} = do
   benc   <- link "benchmark" (jreduceRunName <./> "benchmark")
@@ -95,138 +249,3 @@ evaluateOld JReduceSettings {..} = do
     args .= [ fix, Output "workfolder/metrics2.csv"]
     stdout .= Just "workfolder/metrics.csv"
 
-evaluation :: [ Text.Text ] -> Int -> Nixec Rule
-evaluation strategies errors = do
-  benchmarks <-
-    fmap (List.sort . removeBadBenchmarks)
-    . listFiles (PackageInput "benchmarks")
-    $ Text.stripSuffix "_tgz-pJ8"
-    . Text.pack
-
-  cn <-
-    scope "sizes"
-    . collectWith (\x -> do
-      countcnfs <- link "countcnfs.py" (PackageInput "countcnfs")
-      path ["python3"]
-      cmd "python3" $ do
-        args .= [countcnfs, Input "."]
-        stdout .= Just "cnfs.csv"
-      )
-    . scopesBy fst benchmarks
-    $ \(name, benchmark) -> collect $ do
-        benc <- link "benchmark" benchmark
-        stdlib <- link "stdlib.bin" (PackageInput "stubs")
-        path ["javaq", "jreduce"]
-        cmd "javaq" $ do
-          args .= ["class-metrics+csv", "--cp", benc <.+> "/classes"]
-          stdout .= Just "size.csv"
-        cmd "jreduce" $ do
-          args .=
-            [ "-W" , Output "workfolder"
-            , "--strategy" , "items+logic"
-            , "--dump-logic"
-            , "--output-file", Output "reduced"
-            , "--max-iterations", "1"
-            , "--stdlib", stdlib
-            , "--cp", benc <.+> "/lib", benc <.+> "/classes", "true"
-            ]
-
-  collectWith (fullCollector cn) . scopesBy fst benchmarks $ \(name, benchmark) ->
-    collectWith resultCollector . scopes predicateNames $ \predicate -> do
-      run <- rule "run" $ do
-        benc  <- link "benchmark" benchmark
-        predi <- link "predicate" $ predicates <./> toFilePath predicate
-        env "MAX_ERRORS" (Text.pack . show $ errors)
-        cmd predi $ do
-          args .= [benc <.+> "/classes", benc <.+> "/lib"]
-
-      reductions <- onSuccess run . rules ("jreduce":strategies) $ \strategy -> do
-          env "MAX_ERRORS" (Text.pack . show $ errors)
-          case strategy of
-            "jreduce" ->
-              evaluateOld (defaultSettings run strategy)
-            _ -> evaluate ((defaultSettings run strategy) { jreduceVersion = "jreduce" } )
-
-      collect $ do
-        rs      <- asLinks (concat . maybeToList $ reductions)
-        extract <- link "extract.py" extractpy
-        needs ["run" ~> run, OnPath "cloc"]
-        path ["python3"]
-        cmd "python3" $ do
-          args .= extract : RegularArg name : RegularArg predicate : rs
-          stdout .= Just "result.csv"
-        exists "result.csv"
- where
-  fullCollector :: RuleName -> [CommandArgument] -> RuleM ()
-  fullCollector sizes a = do
-    joinCsv resultFields a "result.csv"
-    minutes <- link "minutes.py" (PackageInput "minutespy")
-    sizes <- link "sizes" sizes
-    path ["evaluation"]
-    cmd "python3" $ do
-      args .= [ minutes, Input "."
-              , Output "classes.csv"
-              , Output "bytes.csv"
-              ]
-   where
-    resultFields = ["benchmark", "predicate", "strategy"]
-
-
-  predicateNames = ["cfr", "fernflower", "procyon"]
-
-  removeBadBenchmarks = filter $ \(n,_) -> n `notElem`
-    [ -- covariant arrays
-     "url22ade473db_sureshsajja_CodingProblems"
-    , "url2984a84cec_yusuke2255_relation_resolver"
-    , "url484e914e4f_JasperZXY_TestJava"
-     -- overloads the stdlibrary
-    , "url03c33a0cf1_m_m_m_java8_backports"
-    ]
-
-extractpy = PackageInput "extractpy"
-
-examples = scope "examples" $ do
-  let examplenames = ["main_example", "field", "throws", "lambda", "metadata"]
-  collectWith resultCollector . scopes examplenames $ \name -> do
-    run <- rule "run" $ do
-      bench <- link
-        "benchmark"
-        (PackageInput (fromString . Text.unpack $ "examples." <> name))
-      predi <- createScript "predicate" $ "java -cp $1:$2 Main"
-      cmd predi $ args .= [bench <.+> "/classes", bench <.+> "/lib"]
-
-    reductions <- onSuccess run $ do
-      jred <- rule "jreduce" $ evaluateOld (defaultSettings run "")
-          { jreduceKeepFolders = True
-          -- , jreduceArgs = [ "--core" , RegularArg $ "Main" ]
-          }
-      reds <- rules ["classes", "items+logic", "items+graph+first", "items+graph+last"] $ \strategy ->
-        evaluate $ ( defaultSettings run strategy)
-          { jreduceKeepFolders = True
-          , jreduceArgs = []
-                          -- [ "--core" , RegularArg $ "Main"
-                          -- , "--core" , RegularArg $ "Main.main:([Ljava/lang/String;)V!code"
-                          -- ]
-          }
-
-      return $ jred:reds
-
-    collect $ do
-      rs      <- asLinks (concat . maybeToList $ reductions)
-      extract <- link "test.py" extractpy
-      path ["python3"]
-      cmd "python3" $ do
-        args .= extract : RegularArg name : RegularArg "run" : rs
-        stdout .= Just "result.csv"
-      exists "result.csv"
-
-main :: IO ()
-main = defaultMain . collectLinks $ sequenceA
-  [ examples
-  , scope "full" $ evaluation [
-                              "classes", "items+logic", "items+graph+first",
-                              "items+graph+last"] 100
-  ]
-
-resultCollector x = joinCsv resultFields x "result.csv"
-  where resultFields = ["benchmark", "predicate", "strategy"]

@@ -98,7 +98,7 @@ from option 3, with RAM set to 8192 MB.
    /nix/store/5v6xghid3s569bwcipasynlyi6d5v2yw-all
    ```
 
-5. () Optimize the nix-store so that the disk is smaller.
+5. (16 min) Optimize the nix-store so that the disk is smaller.
 
    ```bash
    $ nix-store --optimize

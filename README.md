@@ -4,16 +4,13 @@ By Christian Kalhauge and Jens Palsberg
 
 - Version: 1.0
 
-The artifact have three main sections:
+The artifact have two main sections:
 
 1. *Getting Started Guide:* This is a short introduction to the artifact and
    explanation of how setup system.
 
 2. *Step-by-Step instruction:* Lists the findings supported by the artifact,
    and show how to reproduce the results.
-
-2. *Going Above and Beyond:* Talks about how to make changes to the system to
-   support extension or further research.
 
 ## Getting Started Guide
 
@@ -37,11 +34,6 @@ The artifact is structured like this:
 │   -- The decompilers that we have bugs in.
 ├── examples
 │   -- A list of small examples which we run J-Reduce on.
-├── figures
-│   -- This is where the Jupyter Notebook puts the figures we use in the paper.
-├── pre-calculated
-│   -- This is where we have put our results to reduce the time needed to
-│   -- evaluate the artifact
 ├── predicate
 │   -- Contains the predicates that we used when doing reduction.
 ├── source
@@ -50,8 +42,13 @@ The artifact is structured like this:
 │   -- This is the paper
 ├── pldi21-paper485-supplemental_text.pdf
 │   -- This is the supplemental text
+├── pre-calculated
+│   -- This is where we have put our results to reduce the time needed to
+│   -- evaluate the artifact
 ├── evaluation.ipynb
 │   -- A Jupyter Notebook which reproduces the evaluation.
+├── figures
+│   -- This is where the Jupyter Notebook puts the figures we use in the paper.
 ├── README.md
 │   -- This file.
 ├── Nixecfile.hs
@@ -67,7 +64,7 @@ The artifact is structured like this:
 
 ### Choose an Installation of Nix
 
-The artifact was tested on a NixOS machine, but many options exist:
+The artifact was tested on a NixOS machine and the Virtual Box, but many options exist:
 
 ```bash
 $ nix --version
@@ -88,10 +85,15 @@ This evaluation uses Nix to make all builds reproducible. So either
    [webpage](https://nixos.org/download.html#nixos-virtualbox) the container needs atleast
    8 Gb of RAM and 50 Gb of storage.
 
-4. Finally we have created a virtual box, from the virual box above, where we
-   are sure that everything have been setup correctly.
+4. Finally we have created a virtual box, from the virtual box above, where we
+   are sure that everything have been setup correctly, and the cache is loaded.
 
-   Username: demo, password: demo.
+   - username: demo.
+   - password: demo.
+   - uses 34 Gb on your disk.
+
+### Steps taken to
+
 
 ### Cache (Optional, And done if you choose option 4.).
 

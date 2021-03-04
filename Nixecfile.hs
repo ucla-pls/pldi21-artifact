@@ -35,7 +35,7 @@ evaluation strategies errors = do
 
   -- Load the benchmarks from the 'benchmarks' package, remove the bad ones
   benchmarks <-
-    -- MAYBE: take 5
+    -- SMALLER: fmap (take 5) .
     fmap (List.sort . removeBadBenchmarks)
     . listFiles (PackageInput "benchmarks")
     $ Text.stripSuffix "_tgz-pJ8"

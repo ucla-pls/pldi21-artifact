@@ -4,6 +4,8 @@ benchmarks
 result
 _nixec/database
 pre-calculated/cache.nar.bzip2
+pre-calculated/result.tbz2
+pre-calculated/nixecdb.tgz
 figures/*.png
 figures/*.eps
 .vagrant/

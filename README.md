@@ -24,6 +24,92 @@ prominent is nix. Nix is a purely functional package manager which ensures that
 on [their homepage](nixos.org). You can install it on most system, however, the
 derivations that we have created have been created on a NixOS machine.
 
+### Choose an Installation of Nix
+
+The artifact was tested on a NixOS machine and the Virtual Box, but many options exist:
+
+```bash
+$ nix --version
+nix (Nix) 2.3.3
+
+$ nixos-version
+19.09.2518.8260cd5bc65 (Loris)
+```
+
+This evaluation uses Nix to make all builds reproducible. So either
+
+1. Install [nix](https://nixos.org/download.html#nix-quick-install) on your system
+   (the chache only match on a linux only).
+
+2. Install [NixOS](https://nixos.org/download.html#nixos-iso) as an operating system.
+
+3. Use the virtual box provided by their
+   [webpage](https://nixos.org/download.html#nixos-virtualbox) the container needs atleast
+   8 Gb of RAM and 50 Gb of storage.
+
+4. Finally we have created a virtual box, from the virtual box above, where we
+   are sure that everything have been setup correctly, and the cache is loaded.
+
+   - username: demo.
+   - password: demo.
+   - uses 34 Gb on your disk.
+
+### Steps Taken Produce the Virtual Box.
+
+*NOTE:* This has already been done in the virtual box, and are only for reference.
+
+1. Checkout the artifact github repository:
+
+   ```bash
+   $ git clone https://github.com/ucla-pls/pldi21-artifact.git
+   ```
+
+2. Download the `cache.nar.bzip2` from google drive. Follow the
+   [link](https://drive.google.com/file/d/14Zj2E-JiNGI4zWy-0IQcyuI-SqW5h-Lo/view?usp=sharing).
+
+3. Load the cache into the nix-store. This makes sure that all the following steps will take
+   a lot shorter, and also make sure that evaluations resulst are the once we ran on our
+   machines.
+
+   ```bash
+   $ pv -s ~/Downloads/cache.nar.bzip2 | bzip2 -c -d | sudo nix-store --option require-sigs false --import
+   ```
+
+4. Build the evaluation framework:
+
+   ```bash
+   $ nix-shell -A all --run 'nixec list --check -v'
+   ```
+
+4. Fetch the evaluation results from the nix-store.
+
+   ```bash
+   $ nix-shell -A rules --arg target nixecdb/rules/all.rule.nix
+   ```
+
+### Cache (Optional, And done if you choose option 4.).
+
+Load the cache. We have already done all of the calculations for you so you
+do not have to do all those things. You can skip this step, but some operations
+do take a long time.
+
+Install `pv` it's a nice tool to see your progress.
+
+```bash
+$ nix-env -iA nixos.pv
+```
+
+Now load the cache, the process bar will tell you how long time is left. This will
+take around 15 minutes.
+
+```bash
+$ pv pre-calculated/cache.nar.bzip2 \
+  | bzip2 -c -d \
+  | sudo nix-store --option require-sigs false --import
+```
+
+### Getting Into the Weeds
+
 The artifact is structured like this:
 
 ```bash
@@ -62,61 +148,7 @@ The artifact is structured like this:
     -- This is the main entry point for all our nix operations.
 ```
 
-### Choose an Installation of Nix
 
-The artifact was tested on a NixOS machine and the Virtual Box, but many options exist:
-
-```bash
-$ nix --version
-nix (Nix) 2.3.3
-
-$ nixos-version
-19.09.2518.8260cd5bc65 (Loris)
-```
-
-This evaluation uses Nix to make all builds reproducible. So either
-
-1. Install [nix](https://nixos.org/download.html#nix-quick-install) on your system
-   (the chache only match on a linux only).
-
-2. Install [NixOS](https://nixos.org/download.html#nixos-iso) as an operating system.
-
-3. Use the virtual box provided by their
-   [webpage](https://nixos.org/download.html#nixos-virtualbox) the container needs atleast
-   8 Gb of RAM and 50 Gb of storage.
-
-4. Finally we have created a virtual box, from the virtual box above, where we
-   are sure that everything have been setup correctly, and the cache is loaded.
-
-   - username: demo.
-   - password: demo.
-   - uses 34 Gb on your disk.
-
-### Steps taken to
-
-
-### Cache (Optional, And done if you choose option 4.).
-
-Load the cache. We have already done all of the calculations for you so you
-do not have to do all those things. You can skip this step, but some operations
-do take a long time.
-
-Install `pv` it's a nice tool to see your progress.
-
-```bash
-$ nix-env -iA nixos.pv
-```
-
-Now load the cache, the process bar will tell you how long time is left. This will
-take around 15 minutes.
-
-```bash
-$ pv pre-calculated/cache.nar.bzip2 \
-  | bzip2 -c -d \
-  | sudo nix-store --option require-sigs false --import
-```
-
-### Setting up the evaluation
 
 The evaluation is written in the `Nixecfile.hs`. You can change how we process the
 benchmarks in this file. For example, you change the evaluation so that it only

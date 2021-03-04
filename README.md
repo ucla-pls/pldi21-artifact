@@ -56,57 +56,53 @@ This evaluation uses Nix to make all builds reproducible. So either
 
 ### Steps Taken Produce the Virtual Box.
 
-*NOTE:* This has already been done in the virtual box, and are only for reference.
+*NOTE:* This has already been done in the virtual box, and are only for
+reference.  Build from the `NixOS 20.09.3346.4d000ee90c6e2 (x86_64-linux)` OVA,
+from option 3, with RAM set to 8192 MB.
+
+0. Open Konsole and install the tools we need:
+
+   ```bash
+   nix-env -iA nixos.vim nixos.pv nixos.git nixos.htop
+   ```
 
 1. Checkout the artifact github repository:
 
    ```bash
-   $ git clone https://github.com/ucla-pls/pldi21-artifact.git
+   $ git clone --recurse-submodules https://github.com/ucla-pls/pldi21-artifact.git
+   $ cd pldi21-artifact
    ```
 
-2. Download the `cache.nar.bzip2` from google drive. Follow the
+2. Download the `cache.nar.bzip2` from Google Drive. Follow the
    [link](https://drive.google.com/file/d/14Zj2E-JiNGI4zWy-0IQcyuI-SqW5h-Lo/view?usp=sharing).
 
-3. Load the cache into the nix-store. This makes sure that all the following steps will take
-   a lot shorter, and also make sure that evaluations resulst are the once we ran on our
+3. (10 min) Load the cache into the nix-store. This makes sure that all the following steps will take
+   a lot shorter, and also make sure that evaluations results are the ones we ran on our
    machines.
 
    ```bash
-   $ pv -s ~/Downloads/cache.nar.bzip2 | bzip2 -c -d | sudo nix-store --option require-sigs false --import
+   $ pv ~/Downloads/cache.nar.bzip2 | bzip2 -c -d | sudo nix-store --option require-sigs false --import
+   $ rm ~/Downloads/cache.nar.bzip2
    ```
 
-4. Build the evaluation framework:
+4. (2 min) Build the evaluation framework:
 
    ```bash
    $ nix-shell -A all --run 'nixec list --check -v'
    ```
 
-4. Fetch the evaluation results from the nix-store.
+4. (5 s) Fetch the evaluation results from the nix-store.
 
    ```bash
    $ nix-shell -A rules --arg target nixecdb/rules/all.rule.nix
+   /nix/store/5v6xghid3s569bwcipasynlyi6d5v2yw-all
    ```
 
-### Cache (Optional, And done if you choose option 4.).
+5. () Optimize the nix-store so that the disk is smaller.
 
-Load the cache. We have already done all of the calculations for you so you
-do not have to do all those things. You can skip this step, but some operations
-do take a long time.
-
-Install `pv` it's a nice tool to see your progress.
-
-```bash
-$ nix-env -iA nixos.pv
-```
-
-Now load the cache, the process bar will tell you how long time is left. This will
-take around 15 minutes.
-
-```bash
-$ pv pre-calculated/cache.nar.bzip2 \
-  | bzip2 -c -d \
-  | sudo nix-store --option require-sigs false --import
-```
+   ```bash
+   $ nix-store --optimize
+   ```
 
 ### Getting Into the Weeds
 

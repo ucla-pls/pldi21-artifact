@@ -126,7 +126,8 @@ from option 3, with RAM set to 8192 MB.
 
 ### Getting Into the Weeds
 
-The artifact is structured like this:
+If you are using the VirtualBox, start a Konsole terminal and `cd
+pldi21-artifact`. The artifact is structured like this:
 
 ```bash
 .

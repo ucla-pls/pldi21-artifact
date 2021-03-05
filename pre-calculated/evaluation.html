@@ -2,7 +2,7 @@
 <html>
 <head><meta charset="utf-8" />
 
-<title>Evaluation Of Logical Program Reduction</title>
+<title>evaluation</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
@@ -13077,7 +13077,7 @@ div#notebook {
 <div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>This is the notebook, which contains the results of running our evaluation.</p>
+<h1 id="The-Evaluation">The Evaluation<a class="anchor-link" href="#The-Evaluation">&#182;</a></h1><p>This notebook contains the evaluation of our paper.</p>
 
 </div>
 </div>
@@ -13119,7 +13119,7 @@ div#notebook {
 <div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="Full">Full<a class="anchor-link" href="#Full">&#182;</a></h1><p>This section covers the evaluation where we preserve the full bug. We start by loading the the data and indexing by <code>name</code>, <code>predicate</code>, and <code>strategy</code>. The data have been computed and put in <code>results/full/result.csv</code> by our evalutation framework. This evaluation is currently pointed at <code>pre-calculated</code> which contains the data from one of oure runs. It's sligthly different from the results we have in the paper but only in running time.</p>
+<p>This section covers the evaluation where we preserve the full bug. We start by loading the the data and indexing by <code>name</code>, <code>predicate</code>, and <code>strategy</code>. The data have been computed and put in <code>results/full/result.csv</code> by our evalutation framework. This evaluation is currently pointed at <code>pre-calculated</code> which contains the data from one of oure runs. It's sligthly different from the results we have in the paper but only in running time.</p>
 
 </div>
 </div>
@@ -15007,14 +15007,12 @@ The PostScript backend does not support transparency; partially transparent arti
 <span class="n">b</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="s2">&quot;bytes&quot;</span><span class="p">]</span>
 <span class="n">index</span> <span class="o">=</span> <span class="p">(</span><span class="n">b</span><span class="p">[</span><span class="s2">&quot;classes&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="n">b</span><span class="p">[</span><span class="s2">&quot;items+logic&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">sort_values</span><span class="p">()</span><span class="o">.</span><span class="n">index</span><span class="p">[[</span><span class="mi">113</span><span class="p">,</span><span class="mi">129</span><span class="p">]]</span>
 
-<span class="c1">#print(index)</span>
 <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
     <span class="s2">&quot;initial&quot;</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="s2">&quot;initial-lines&quot;</span><span class="p">][</span><span class="s2">&quot;classes&quot;</span><span class="p">],</span>
     <span class="s2">&quot;classes&quot;</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="s2">&quot;lines&quot;</span><span class="p">][</span><span class="s2">&quot;classes&quot;</span><span class="p">],</span>
     <span class="s2">&quot;items+logic&quot;</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="s2">&quot;lines&quot;</span><span class="p">][</span><span class="s2">&quot;items+logic&quot;</span><span class="p">],</span>
     <span class="s2">&quot;better&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">b</span><span class="p">[</span><span class="s2">&quot;classes&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="n">b</span><span class="p">[</span><span class="s2">&quot;items+logic&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
 <span class="p">})</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
-<span class="c1">#results.loc[index][[&quot;initial-lines&quot;, &quot;lines&quot;]]</span>
 </pre></div>
 
     </div>
@@ -15096,7 +15094,7 @@ The PostScript backend does not support transparency; partially transparent arti
 <div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="Total-Evaluation-Time">Total Evaluation Time<a class="anchor-link" href="#Total-Evaluation-Time">&#182;</a></h1>
+<h2 id="Total-Evaluation-Time">Total Evaluation Time<a class="anchor-link" href="#Total-Evaluation-Time">&#182;</a></h2>
 </div>
 </div>
 </div>
@@ -15127,19 +15125,6 @@ The PostScript backend does not support transparency; partially transparent arti
 </div>
 </div>
 
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span> 
-</pre></div>
-
-    </div>
 </div>
 </div>
 

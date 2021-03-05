@@ -26,8 +26,9 @@ derivations that we have created have been created on a NixOS machine.
 
 ### Choose an Installation of Nix
 
-The artifact was tested on a NixOS machine and the Virtual Box, but many options exist:
+The artifact was tested on a NixOS machine and the Virtual Box.
 
+NixOS:
 ```bash
 $ nix --version
 nix (Nix) 2.3.3
@@ -36,6 +37,14 @@ $ nixos-version
 19.09.2518.8260cd5bc65 (Loris)
 ```
 
+Virtual Box:
+```bash
+$ nix --version
+nix (Nix) 2.3.10
+
+$ nixos-version
+20.09.3346.4d0ee90c6e2 (Nightingale)
+```
 This evaluation uses Nix to make all builds reproducible. So either
 
 1. Install [nix](https://nixos.org/download.html#nix-quick-install) on your system
@@ -48,11 +57,13 @@ This evaluation uses Nix to make all builds reproducible. So either
    8 Gb of RAM and 50 Gb of storage.
 
 4. Finally we have created a virtual box, from the virtual box above, where we
-   are sure that everything have been setup correctly, and the cache is loaded.
+   are sure that everything have been setup correctly, and we have loaded a run on our
+   machines into the nix-store so they can be inspected.
 
    - username: demo.
    - password: demo.
-   - uses 34 Gb on your disk.
+   - uses: ~34 Gb on your disk.
+   - tested on VirtualBox version 6.1.18 r142142
 
 ### Steps Taken Produce the Virtual Box.
 
@@ -98,11 +109,20 @@ from option 3, with RAM set to 8192 MB.
    /nix/store/5v6xghid3s569bwcipasynlyi6d5v2yw-all
    ```
 
-5. (16 min) Optimize the nix-store so that the disk is smaller.
+5. (~20 min) Optimize the nix-store so that the disk is smaller.
 
    ```bash
    $ nix-store --optimize
+   $ reboot
    ```
+
+6. (5 min) Run the evaluation so that it has it's fields preloaded
+
+   ```bash
+   $ nix-shell nix/jupyter.nix --run 'jupyter notebook evaluation.ipynb'
+   ```
+
+   Press the 'Run' button.
 
 ### Getting Into the Weeds
 

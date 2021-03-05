@@ -217,20 +217,42 @@ the results in that folder.
 
 ### Running the tool yourself
 
-If instead of building the results you want to run it yourself you can run the `nix-shell` command on the same rule:
+If instead of building the results you want to run it yourself you can run the
+`nix-shell` command on the same rule:
 
 ```bash
 $ nix-shell -A rules --arg target nixecdb/rules/full/url0067cdd33d_goldolphin_Mi/cfr/items+logic.rule.nix
 ```
 
-You will now be dropped into a nice shell in which you can run the command. Either you'll have to run the code manually or you can run the `run.sh` file. Like this:
+You will now be dropped into a nice shell in which you can run the command. You can see that
+`jreduce` is now installed.
+
+```bash
+$ jreduce --help
+jreduce
+
+Usage: jreduce INPUT [-R|--reducer RED] CMD [ARG..]
+...
+```
+
+Either you'll have to run the code manually or you can run the `run.sh` file. Which
+contains the actual command we ran on this benchmark. Take some time to inspect the
+file so you can get a feel for the command line argument used. The most interesting
+are:
+
+- `-p out,exit`: preserve stdout and the exit code.
+- `--out "$INPUTDIR/expectation"`: make sure that the stdout matches the expectation.
+- `$INPUTDIR/predicate" {} "$INPUTDIR/benchmark"/lib`: run the predicate witht the classfiles
+  as the second argument.
 
 ```bash
 $ ./run.sh
 ```
 
-You can also add extra arguments to `./run.sh` which will be passed onto `jreduce` in the
-`$@` command. Try `--keep-folders` to save more information during the runs. After running you should see a folder containing all the reductions tried:
+You can also add extra arguments to `./run.sh` which will be passed onto
+`jreduce` in the `$@` command. Try `--keep-folders` to save more information
+during the runs. After running you should see a folder containing all the
+reductions tried:
 
 ```
 $ tree workfolder/ -L 2
@@ -606,6 +628,18 @@ a normal browser
 
 
 # APPENDIX
+
+## Changes to the Predicate
+
+We try to preserve the full bug when running the code. But, because
+we change the internals of the code, the line numbers are bound to change.
+We therefore remove line numbers from the compile output, only keep the
+errors, and sort the errors:
+
+From predicate/utils/compile.sh line 33:
+```bash
+  sed -n 's/^\([^.]*.java\):[0-9]*: error/\1/gp' "$output/compiler.out.txt" | sort
+```
 
 ## Benchmarks removed from the data-set
 
